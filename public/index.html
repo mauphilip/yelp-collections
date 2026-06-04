@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Collections · Yelp Collections+</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -174,35 +177,39 @@ function renderCard(biz) {
   const tags = biz.tags.map(t => `<span class="tag">${t}</span>`).join('')
 
   const statusBadge = biz.status === 'been'
-    ? '<span class="tag" style="background:#d1fae5;color:#065f46;">Been There</span>'
-    : '<span class="tag" style="background:#fef3c7;color:#92400e;">Want to Go</span>'
+    ? '<span class="status-badge been">✓ Been There</span>'
+    : '<span class="status-badge want">♡ Want to Go</span>'
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
 
-  const website = biz.website
-    ? `<a class="card-website" href="${biz.website}" target="_blank" rel="noopener">🔗 ${new URL(biz.website).hostname.replace('www.','')}</a>`
-    : ''
+  let website = ''
+  if (biz.website) {
+    try { website = `<a class="card-website" href="${biz.website}" target="_blank" rel="noopener">🔗 ${new URL(biz.website).hostname.replace('www.','')}</a>` }
+    catch { website = '' }
+  }
 
   const notes = renderNotes(biz.notes)
 
   return `
     <div class="card${closedClass}" data-id="${biz.id}">
       ${closedBadge}
-      ${img}
+      <div class="card-img-wrap">
+        ${img}
+      </div>
       <div class="card-body">
         <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
         <div class="card-meta">
           <span class="stars">${starsHtml(biz.rating).replace(/<[^>]+>/g,'')}</span>
           <span>${biz.review_count} reviews</span>
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
-          <span class="cat">${categoryLabel(biz)}</span>
         </div>
-        <div class="card-meta">${biz.location?.city || ''} ${website}</div>
+        <div class="card-meta"><span class="cat">${categoryLabel(biz)}</span></div>
+        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', ' + biz.location.state : ''} ${website}</div>` : ''}
         <div class="card-tags">${statusBadge} ${tags}</div>
         ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
       </div>
       <div class="card-actions">
-        <a class="btn-sm" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
+        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">View on Yelp</a>
         <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
       </div>
     </div>`
