@@ -108,31 +108,14 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
 import { saveBusiness, loadCollection } from './app.js'
 
 // ── Queue persistence ────────────────────────────────────────────────────────
-// Saves the remaining URLs so you can close the tab and come back tomorrow
+// Saves remaining URLs so you can close the tab and resume later
 const QUEUE_KEY = 'yelp_import_queue'
-const DAILY_KEY = 'yelp_import_daily'
-const DAILY_LIMIT = 280  // stay under Yelp's 300/day with some buffer
 
 function loadQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || null } catch { return null }
 }
 function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)) }
 function clearQueue() { localStorage.removeItem(QUEUE_KEY) }
-
-function getDailyCount() {
-  try {
-    const d = JSON.parse(localStorage.getItem(DAILY_KEY))
-    if (!d || !isSameUTCDay(d.date)) return 0
-    return d.count
-  } catch { return 0 }
-}
-function incDaily() {
-  const d = getDailyCount()
-  localStorage.setItem(DAILY_KEY, JSON.stringify({ date: new Date().toISOString().slice(0, 10), count: d + 1 }))
-}
-function isSameUTCDay(dateStr) {
-  return dateStr === new Date().toISOString().slice(0, 10)
-}
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const log = document.getElementById('progress-log')
@@ -176,7 +159,7 @@ const existing = loadQueue()
 if (existing && existing.remaining.length > 0) {
   resumeBox.style.display = 'block'
   const done = existing.total - existing.remaining.length
-  resumeInfo.textContent = `${done} of ${existing.total} imported so far. ${existing.remaining.length} remaining. Collection: "${existing.collection}". Daily API calls used today: ${getDailyCount()}/${DAILY_LIMIT}.`
+  resumeInfo.textContent = `${done} of ${existing.total} imported so far. ${existing.remaining.length} remaining. Collection: "${existing.collection}".`
 }
 
 document.getElementById('btn-clear-queue').addEventListener('click', () => {
@@ -222,6 +205,10 @@ document.getElementById('btn-manual-import').addEventListener('click', () => {
 })
 
 // ── Import engine ────────────────────────────────────────────────────────────
+// No artificial caps — let Yelp's API enforce their own limits.
+// On 429: read retryAfter, wait, then continue. On network error: retry 3x.
+// Progress saved after every business so closing the tab is always safe.
+
 async function runImport(ids, collectionName, total, alreadyDone) {
   progressBox.style.display = 'block'
   log.innerHTML = ''
@@ -230,63 +217,58 @@ async function runImport(ids, collectionName, total, alreadyDone) {
   let failed = 0
   const remaining = [...ids]
 
-  addLog(`Importing into "${collectionName}" — ${remaining.length} remaining, ${DAILY_LIMIT - getDailyCount()} API calls left today`)
+  addLog(`Importing into "${collectionName}" — ${remaining.length} remaining`)
 
   for (let i = 0; i < remaining.length; i++) {
     const id = remaining[i]
-
-    // Check daily limit
-    if (getDailyCount() >= DAILY_LIMIT) {
-      // Save remaining for tomorrow
-      saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
-      const left = remaining.length - i
-      addLog(`Daily API limit reached (${DAILY_LIMIT}/day). ${left} businesses queued for tomorrow.`, 'warn')
-      addLog(`Come back tomorrow and click "Resume import" — your progress is saved!`, 'warn')
-      updateProgress(imported, total)
-      return
-    }
-
     addLog(`Fetching ${id}… (${imported + 1}/${total})`)
+
     let success = false
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+
         if (res.status === 429) {
-          // Rate limited — wait 60s and retry
-          addLog('Rate limited — waiting 60s before retrying…', 'warn')
-          await new Promise(r => setTimeout(r, 60_000))
+          // Yelp rate limited us — read their retryAfter or default to 60s
+          const body = await res.json().catch(() => ({}))
+          const wait = parseInt(body.retryAfter || '60', 10)
+          addLog(`Rate limited by Yelp — waiting ${wait}s then resuming… (attempt ${attempt + 1})`, 'warn')
+          // Save progress before waiting in case user closes tab
+          saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
+          await countdown(wait)
           continue
         }
+
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
           throw new Error(err.error || `HTTP ${res.status}`)
         }
+
         const biz = await res.json()
         saveBusiness(biz, [], collectionName)
         addLog(`${biz.name}`, 'done')
         imported++
-        incDaily()
         success = true
         break
       } catch (err) {
-        if (attempt === 2) {
+        if (attempt === 4) {
           addLog(`Failed: ${id} — ${err.message}`, 'err')
           failed++
         } else {
-          addLog(`Retrying ${id}… (${err.message})`, 'warn')
-          await new Promise(r => setTimeout(r, 5000))
+          const backoff = (attempt + 1) * 3
+          addLog(`Retrying ${id} in ${backoff}s… (${err.message})`, 'warn')
+          await new Promise(r => setTimeout(r, backoff * 1000))
         }
       }
     }
 
     updateProgress(imported, total)
-
-    // Save progress after every fetch so closing the tab is safe
+    // Save after every business so closing tab is safe
     saveQueue({ remaining: remaining.slice(i + 1), collection: collectionName, total })
 
-    // Stagger: 3s between requests (safe for 300/day limit)
+    // Small courtesy delay — 500ms between requests
     if (i < remaining.length - 1) {
-      await new Promise(r => setTimeout(r, 3000))
+      await new Promise(r => setTimeout(r, 500))
     }
   }
 
@@ -297,6 +279,18 @@ async function runImport(ids, collectionName, total, alreadyDone) {
     addLog('Redirecting to your list…', '')
     setTimeout(() => { window.location.href = 'index.html' }, 3000)
   }
+}
+
+// Live countdown so the user sees it ticking down, not a frozen screen
+async function countdown(seconds) {
+  const div = document.createElement('div')
+  div.className = 'progress-item warn'
+  log.appendChild(div)
+  for (let s = seconds; s > 0; s--) {
+    div.textContent = `⏸ Resuming in ${s}s…`
+    await new Promise(r => setTimeout(r, 1000))
+  }
+  div.textContent = '⏸ Resuming now…'
 }
 
 function updateProgress(done, total) {

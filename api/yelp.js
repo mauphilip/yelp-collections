@@ -1,28 +1,14 @@
 // Vercel serverless function — Yelp Fusion API proxy
 // API key stays server-side; client never sees it.
-// Server enforces a secondary rate limit as a safety net on top of client-side limiting.
+// No artificial rate limiting — Yelp enforces their own limits and we pass
+// their rate-limit headers through so the client can handle 429s properly.
 
 const YELP_BASE = 'https://api.yelp.com/v3'
-
-// In-memory sliding window (resets on cold start, but client-side limiter is the primary guard)
-const requestLog = []
-const SERVER_LIMIT_PER_MIN = 30  // Yelp allows ~50 QPS; this is the safety net
-
-function isServerRateLimited() {
-  const now = Date.now()
-  const cutoff = now - 60_000
-  while (requestLog.length && requestLog[0] < cutoff) requestLog.shift()
-  if (requestLog.length >= SERVER_LIMIT_PER_MIN) return true
-  requestLog.push(now)
-  return false
-}
 
 // Allowed Yelp API paths this proxy will forward to
 const ALLOWED_PATHS = [
   /^\/businesses\/search$/,
   /^\/businesses\/[A-Za-z0-9_-]+$/,
-  /^\/users\/[A-Za-z0-9_-]+\/collections$/,
-  /^\/collections\/[A-Za-z0-9_-]+\/businesses$/,
 ]
 
 export default async function handler(req, res) {
@@ -33,10 +19,6 @@ export default async function handler(req, res) {
   const apiKey = process.env.YELP_API_KEY
   if (!apiKey) {
     return res.status(500).json({ error: 'YELP_API_KEY not configured' })
-  }
-
-  if (isServerRateLimited()) {
-    return res.status(429).json({ error: 'Rate limit exceeded. Please wait a moment.' })
   }
 
   // Extract the Yelp path from query param ?path=/businesses/search
@@ -61,11 +43,23 @@ export default async function handler(req, res) {
 
     const body = await upstream.json()
 
-    if (!upstream.ok) {
-      return res.status(upstream.status).json({ error: body.error?.description || 'Yelp API error', yelp: body })
+    // Pass through Yelp's rate limit headers so the client knows where it stands
+    const rateLimitHeaders = ['RateLimit-DailyLimit', 'RateLimit-Remaining', 'RateLimit-ResetTime']
+    for (const h of rateLimitHeaders) {
+      const val = upstream.headers.get(h)
+      if (val) res.setHeader(h, val)
     }
 
-    // Required by Yelp ToS: do not cache responses beyond 24h (we enforce that client-side)
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({
+        error: body.error?.description || 'Yelp API error',
+        yelp: body,
+        retryAfter: upstream.status === 429
+          ? upstream.headers.get('Retry-After') || '60'
+          : null,
+      })
+    }
+
     res.setHeader('X-Yelp-Attribution', 'true')
     return res.status(200).json(body)
   } catch (err) {

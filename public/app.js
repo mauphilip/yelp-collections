@@ -1,39 +1,28 @@
-// ── Rate Limiter (persisted across sessions/restarts) ─────────────────────────
-// State stored in localStorage so a page reload or app restart never causes a burst.
+// ── Rate Limit Tracking (reads Yelp's actual headers, no artificial caps) ─────
+// We don't throttle ourselves — Yelp enforces their own limits. We just track
+// what they tell us so we can display remaining calls and handle 429s properly.
 
 const RATE_KEY = 'yelp_rate'
-const RATE_LIMITS = { minute: { max: 5, window: 60_000 }, hour: { max: 50, window: 3_600_000 } }
 
-function loadRate() {
+function saveRateInfo(headers) {
+  const info = {
+    dailyLimit: headers.get('RateLimit-DailyLimit'),
+    remaining: headers.get('RateLimit-Remaining'),
+    resetTime: headers.get('RateLimit-ResetTime'),
+    updated: Date.now(),
+  }
+  try { localStorage.setItem(RATE_KEY, JSON.stringify(info)) } catch {}
+  return info
+}
+
+function loadRateInfo() {
   try { return JSON.parse(localStorage.getItem(RATE_KEY)) || {} } catch { return {} }
 }
-function saveRate(state) { localStorage.setItem(RATE_KEY, JSON.stringify(state)) }
 
-function checkAndRecord() {
-  const now = Date.now()
-  const state = loadRate()
-  for (const [key, cfg] of Object.entries(RATE_LIMITS)) {
-    if (!state[key] || now - state[key].start >= cfg.window) {
-      state[key] = { start: now, count: 0 }
-    }
-    if (state[key].count >= cfg.max) {
-      const wait = Math.ceil((cfg.window - (now - state[key].start)) / 1000)
-      saveRate(state)
-      throw new Error(`Rate limit: too many requests. Try again in ${wait}s.`)
-    }
-  }
-  for (const key of Object.keys(RATE_LIMITS)) state[key].count++
-  saveRate(state)
-}
-
-function rateLimitStatus() {
-  const now = Date.now()
-  const state = loadRate()
-  return Object.entries(RATE_LIMITS).map(([key, cfg]) => {
-    const s = state[key] || { start: now, count: 0 }
-    const remaining = cfg.max - (now - s.start < cfg.window ? s.count : 0)
-    return `${remaining}/${cfg.max} per ${key}`
-  }).join(' · ')
+export function rateLimitStatus() {
+  const info = loadRateInfo()
+  if (!info.dailyLimit) return 'No rate info yet'
+  return `${info.remaining}/${info.dailyLimit} calls remaining today`
 }
 
 // ── API Cache (24h for search results, 7d for business status) ────────────────
@@ -56,22 +45,33 @@ function cacheSet(key, data, ttl) {
 
 // ── Yelp API calls ────────────────────────────────────────────────────────────
 
-async function yelpFetch(path, params = {}) {
-  checkAndRecord()  // throws if rate limited
+// Returns { data, rateInfo, status }. On 429, returns retryAfter in seconds.
+export async function yelpFetch(path, params = {}) {
   const qs = new URLSearchParams({ path, ...params }).toString()
   const res = await fetch(`/api/yelp?${qs}`)
+  const rateInfo = saveRateInfo(res.headers)
+
+  if (res.status === 429) {
+    const body = await res.json().catch(() => ({}))
+    const retryAfter = parseInt(body.retryAfter || '60', 10)
+    return { data: null, rateInfo, status: 429, retryAfter }
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || `HTTP ${res.status}`)
   }
-  return res.json()
+
+  const data = await res.json()
+  return { data, rateInfo, status: 200 }
 }
 
 export async function searchBusinesses(params) {
   const cacheKey = 'search_' + JSON.stringify(params)
   const cached = cacheGet(cacheKey)
   if (cached) return cached
-  const data = await yelpFetch('/businesses/search', params)
+  const { data, status, retryAfter } = await yelpFetch('/businesses/search', params)
+  if (status === 429) throw new Error(`Rate limited — retry in ${retryAfter}s`)
   cacheSet(cacheKey, data, CACHE_TTL.search)
   return data
 }
@@ -80,17 +80,17 @@ export async function getBusinessStatus(id) {
   const cacheKey = 'biz_' + id
   const cached = cacheGet(cacheKey)
   if (cached) return cached
-  const data = await yelpFetch(`/businesses/${id}`)
-  // Store only the fields we need for status checks
-  const status = {
+  const { data, status, retryAfter } = await yelpFetch(`/businesses/${id}`)
+  if (status === 429) throw new Error(`Rate limited — retry in ${retryAfter}s`)
+  const bizStatus = {
     id: data.id,
     name: data.name,
     is_closed: data.is_closed,
     hours: data.hours,
     coordinates: data.coordinates,
   }
-  cacheSet(cacheKey, status, CACHE_TTL.status)
-  return status
+  cacheSet(cacheKey, bizStatus, CACHE_TTL.status)
+  return bizStatus
 }
 
 // ── Collections Store (localStorage) ─────────────────────────────────────────
@@ -166,9 +166,8 @@ export function getAllTags() {
 }
 
 // ── Closed Business Checker ───────────────────────────────────────────────────
-// Staggered: 1 request per 2 seconds, skips businesses with fresh cache.
-// Calls onProgress(checked, total, business) after each check.
-// Calls onDone(closedList) when all done.
+// No artificial stagger — goes as fast as the API allows.
+// On 429, waits for Yelp's retryAfter then continues.
 
 export async function checkClosedBusinesses(onProgress, onDone) {
   const list = loadCollection()
@@ -177,19 +176,36 @@ export async function checkClosedBusinesses(onProgress, onDone) {
   const closed = []
 
   for (const b of expired) {
-    await new Promise(r => setTimeout(r, 2000))  // stagger requests
     try {
-      const status = await getBusinessStatus(b.id)
-      updateBusiness(b.id, { closed_status: status.is_closed ? 'closed' : 'open' })
-      if (status.is_closed) closed.push(b)
+      const result = await yelpFetch(`/businesses/${b.id}`)
+      if (result.status === 429) {
+        onProgress && onProgress(checked, expired.length, b, `Rate limited — waiting ${result.retryAfter}s…`)
+        await new Promise(r => setTimeout(r, result.retryAfter * 1000))
+        // Retry once after waiting
+        const retry = await yelpFetch(`/businesses/${b.id}`)
+        if (retry.status === 429) {
+          updateBusiness(b.id, { closed_status: 'unknown' })
+        } else {
+          const status = retry.data
+          cacheSet('biz_' + b.id, status, CACHE_TTL.status)
+          updateBusiness(b.id, { closed_status: status.is_closed ? 'closed' : 'open' })
+          if (status.is_closed) closed.push(b)
+        }
+      } else {
+        const status = result.data
+        cacheSet('biz_' + b.id, status, CACHE_TTL.status)
+        updateBusiness(b.id, { closed_status: status.is_closed ? 'closed' : 'open' })
+        if (status.is_closed) closed.push(b)
+      }
     } catch {
       updateBusiness(b.id, { closed_status: 'unknown' })
     }
     checked++
     onProgress && onProgress(checked, expired.length, b)
+    // Small courtesy delay to avoid hammering — 500ms, not minutes
+    await new Promise(r => setTimeout(r, 500))
   }
 
-  // Also flag ones already known to be closed from previous checks
   const alreadyClosed = list.filter(b => b.closed_status === 'closed' && !expired.find(e => e.id === b.id))
   onDone && onDone([...closed, ...alreadyClosed])
 }
@@ -234,5 +250,3 @@ export function starsHtml(rating) {
 export function categoryLabel(biz) {
   return (biz.categories || []).map(c => c.title).join(', ')
 }
-
-export { rateLimitStatus }
