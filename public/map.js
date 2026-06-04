@@ -1,19 +1,18 @@
-// Leaflet map — CartoDB Positron tiles, numbered rounded-square pins
+// Leaflet map — Esri World Topo tiles (terrain, free, no API key), white numbered pins
 
 let map, markersLayer, markerMap = {}
 
 export function initMap(containerId) {
   map = L.map(containerId, {
     zoomControl: false,
-    // Default view: LA area, zoomed out enough to see the full basin
-    center: [34.05, -118.25],
+    center: [34.02, -118.35],
     zoom: 10,
   })
 
-  // CartoDB Positron — clean white, modern, no API key
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
+  // Esri World Topo — terrain, green hills, highway shields, clean labels
+  // Free, no API key required
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
     maxZoom: 19,
   }).addTo(map)
 
@@ -21,7 +20,6 @@ export function initMap(containerId) {
   return map
 }
 
-// businesses should have _num set (1-based index in current filtered list)
 export function renderMarkers(businesses, onMarkerClick) {
   markersLayer?.remove()
   markersLayer = L.layerGroup().addTo(map)
@@ -34,8 +32,7 @@ export function renderMarkers(businesses, onMarkerClick) {
 
     const num = biz._num ?? ''
     const isClosed = biz.closed_status === 'closed'
-    // Wider for 3-digit numbers
-    const w = num >= 100 ? 30 : 26
+    const w = num >= 100 ? 32 : 28
     const h = 26
 
     const icon = L.divIcon({
@@ -52,7 +49,6 @@ export function renderMarkers(businesses, onMarkerClick) {
     bounds.push([lat, lng])
   }
 
-  // Fit to markers but don't zoom in too far — keep LA-area context
   if (bounds.length) map.fitBounds(bounds, { padding: [56, 56], maxZoom: 12 })
 }
 
