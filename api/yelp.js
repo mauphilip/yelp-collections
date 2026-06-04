@@ -6,7 +6,7 @@ const YELP_BASE = 'https://api.yelp.com/v3'
 
 // In-memory sliding window (resets on cold start, but client-side limiter is the primary guard)
 const requestLog = []
-const SERVER_LIMIT_PER_MIN = 10  // generous; client already caps at 5
+const SERVER_LIMIT_PER_MIN = 30  // Yelp allows ~50 QPS; this is the safety net
 
 function isServerRateLimited() {
   const now = Date.now()

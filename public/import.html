@@ -247,37 +247,46 @@ async function runImport(ids, collectionName, total, alreadyDone) {
     }
 
     addLog(`Fetching ${id}… (${imported + 1}/${total})`)
-    try {
-      const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
-      if (res.status === 429) {
-        // Hit Yelp's own rate limit — save and pause
-        saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
-        addLog('Yelp rate limit hit. Progress saved — resume in a few minutes.', 'warn')
-        updateProgress(imported, total)
-        return
+    let success = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+        if (res.status === 429) {
+          // Rate limited — wait 60s and retry
+          addLog('Rate limited — waiting 60s before retrying…', 'warn')
+          await new Promise(r => setTimeout(r, 60_000))
+          continue
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || `HTTP ${res.status}`)
+        }
+        const biz = await res.json()
+        saveBusiness(biz, [], collectionName)
+        addLog(`${biz.name}`, 'done')
+        imported++
+        incDaily()
+        success = true
+        break
+      } catch (err) {
+        if (attempt === 2) {
+          addLog(`Failed: ${id} — ${err.message}`, 'err')
+          failed++
+        } else {
+          addLog(`Retrying ${id}… (${err.message})`, 'warn')
+          await new Promise(r => setTimeout(r, 5000))
+        }
       }
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `HTTP ${res.status}`)
-      }
-      const biz = await res.json()
-      saveBusiness(biz, [], collectionName)
-      addLog(`${biz.name}`, 'done')
-      imported++
-      incDaily()
-    } catch (err) {
-      addLog(`Failed: ${id} — ${err.message}`, 'err')
-      failed++
     }
 
     updateProgress(imported, total)
 
-    // Save progress after every successful fetch so closing the tab is safe
+    // Save progress after every fetch so closing the tab is safe
     saveQueue({ remaining: remaining.slice(i + 1), collection: collectionName, total })
 
-    // Stagger: 2s between requests
+    // Stagger: 3s between requests (safe for 300/day limit)
     if (i < remaining.length - 1) {
-      await new Promise(r => setTimeout(r, 2000))
+      await new Promise(r => setTimeout(r, 3000))
     }
   }
 
