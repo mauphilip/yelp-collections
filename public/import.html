@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import Collections · Yelp Collections+</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">Yelp Collections+</span>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">My List</a>
+    <a href="import.html" class="nav-link active">Import</a>
+    <a href="discover.html" class="nav-link">Discover</a>
+  </div>
+</nav>
+
+<div style="padding: 1rem;">
+
+  <!-- Step 1: Instructions -->
+  <div class="import-box" id="step-instructions">
+    <h2>Import your Yelp Collections</h2>
+    <p>Since Yelp has no export or collections API, we use a two-step process: grab your business URLs from Yelp's website, then look each one up via the official API.</p>
+
+    <div style="background:var(--gray-light);border-radius:8px;padding:.75rem 1rem;margin:1rem 0;font-size:.85rem;">
+      <strong>Step 1: Load all items on your Yelp collection page</strong>
+      <ol style="margin:.5rem 0 0 1.25rem;line-height:1.8;">
+        <li>Open your Yelp collection in Chrome/Safari/Firefox</li>
+        <li>Open the browser console: <code style="background:#fff;padding:.1rem .3rem;border-radius:4px;">Cmd+Option+J</code> (Mac) or <code style="background:#fff;padding:.1rem .3rem;border-radius:4px;">Ctrl+Shift+J</code> (Windows)</li>
+        <li>Paste this auto-scroll snippet and hit Enter — it scrolls to the bottom automatically, loading all items:</li>
+      </ol>
+      <pre id="scroll-snippet-box" style="background:#1f2937;color:#e5e7eb;padding:.75rem;border-radius:8px;margin-top:.5rem;font-size:.78rem;overflow-x:auto;white-space:pre-wrap;cursor:pointer;position:relative;"><code>// Auto-scrolls to the bottom, waiting for new items to load.
+// Wait for the alert before running the next snippet.
+(async () => {
+  let prev = 0;
+  while (true) {
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise(r => setTimeout(r, 2000));
+    const curr = document.querySelectorAll('a[href*="/biz/"]').length;
+    if (curr === prev) break;
+    prev = curr;
+    console.log('Loaded ' + curr + ' links so far…');
+  }
+  console.log('Done scrolling! Now run the copy snippet.');
+  alert('Done scrolling! ' + prev + ' links found. Now run the copy snippet.');
+})();</code><span style="position:absolute;top:.4rem;right:.5rem;font-size:.7rem;color:#9ca3af;">click to copy</span></pre>
+      <p style="margin-top:.5rem;color:var(--gray);">Wait for the alert that says "Done scrolling!" before continuing.</p>
+    </div>
+
+    <div style="background:var(--gray-light);border-radius:8px;padding:.75rem 1rem;margin:1rem 0;font-size:.85rem;">
+      <strong>Step 2: Copy all business links to your clipboard</strong>
+      <p style="margin:.5rem 0;">Once scrolling is done, paste this snippet in the same console and hit Enter:</p>
+      <pre id="snippet-box" style="background:#1f2937;color:#e5e7eb;padding:.75rem;border-radius:8px;margin-top:.5rem;font-size:.78rem;overflow-x:auto;white-space:pre-wrap;cursor:pointer;position:relative;"><code>// Grabs all business URLs from the page and copies to clipboard.
+const links = [...document.querySelectorAll('a[href*="/biz/"]')]
+  .map(a => a.href.split('?')[0])
+  .filter((v, i, arr) => arr.indexOf(v) === i)
+  .filter(url => url.match(/\/biz\/[a-z0-9-]+/));
+copy(links.join('\n'));
+alert(links.length + ' business URLs copied to clipboard!');</code><span style="position:absolute;top:.4rem;right:.5rem;font-size:.7rem;color:#9ca3af;">click to copy</span></pre>
+      <p style="margin-top:.5rem;color:var(--gray);">This reads links already on the page — it does <strong>not</strong> scrape or make any requests to Yelp.</p>
+    </div>
+
+    <p style="font-size:.85rem;color:var(--gray);margin-bottom:1rem;">
+      <strong>Step 2:</strong> Paste the copied URLs below. We'll look each one up via the Yelp API (official, ToS-compliant). Free tier allows 300 lookups/day — if you have more, the import saves progress and you can resume tomorrow.
+    </p>
+
+    <label class="filter-label" style="display:block;margin-bottom:.4rem;">Collection name (used as a tag)</label>
+    <input id="manual-collection" class="import-input" type="text" placeholder="e.g. Date Night, Must Try, Brunch Spots…">
+
+    <label class="filter-label" style="display:block;margin:.5rem 0 .3rem;">Business URLs (one per line) — paste your clipboard here</label>
+    <textarea id="manual-ids" class="import-input" rows="10"
+      placeholder="https://www.yelp.com/biz/some-restaurant-city&#10;https://www.yelp.com/biz/another-place-city&#10;… (paste all at once, hundreds is fine)"></textarea>
+
+    <div style="display:flex;gap:.5rem;">
+      <button id="btn-manual-import" class="btn-primary" style="flex:1;">Start import</button>
+    </div>
+  </div>
+
+  <!-- Resume banner -->
+  <div class="import-box" id="resume-box" style="display:none;margin-top:.75rem;">
+    <h3>Resume previous import</h3>
+    <p id="resume-info" style="font-size:.85rem;color:var(--gray);"></p>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+      <button id="btn-resume" class="btn-primary" style="flex:1;">Resume import</button>
+      <button id="btn-clear-queue" class="btn-sm danger" style="padding:.5rem 1rem;">Discard queue</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="import-box" id="progress-box" style="display:none;margin-top:.75rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+      <h3>Import progress</h3>
+      <span id="progress-counter" style="font-size:.85rem;color:var(--gray);"></span>
+    </div>
+    <div style="background:var(--gray-light);border-radius:8px;height:8px;overflow:hidden;margin-bottom:.75rem;">
+      <div id="progress-bar" style="background:var(--blue);height:100%;width:0%;transition:width .3s;"></div>
+    </div>
+    <div class="progress-list" id="progress-log" style="max-height:300px;overflow-y:auto;"></div>
+  </div>
+
+</div>
+
+<footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
+
+<script type="module">
+import { saveBusiness, loadCollection } from './app.js'
+
+// ── Queue persistence ────────────────────────────────────────────────────────
+// Saves the remaining URLs so you can close the tab and come back tomorrow
+const QUEUE_KEY = 'yelp_import_queue'
+const DAILY_KEY = 'yelp_import_daily'
+const DAILY_LIMIT = 280  // stay under Yelp's 300/day with some buffer
+
+function loadQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || null } catch { return null }
+}
+function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)) }
+function clearQueue() { localStorage.removeItem(QUEUE_KEY) }
+
+function getDailyCount() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DAILY_KEY))
+    if (!d || !isSameUTCDay(d.date)) return 0
+    return d.count
+  } catch { return 0 }
+}
+function incDaily() {
+  const d = getDailyCount()
+  localStorage.setItem(DAILY_KEY, JSON.stringify({ date: new Date().toISOString().slice(0, 10), count: d + 1 }))
+}
+function isSameUTCDay(dateStr) {
+  return dateStr === new Date().toISOString().slice(0, 10)
+}
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const log = document.getElementById('progress-log')
+const progressBox = document.getElementById('progress-box')
+const progressBar = document.getElementById('progress-bar')
+const progressCounter = document.getElementById('progress-counter')
+const resumeBox = document.getElementById('resume-box')
+const resumeInfo = document.getElementById('resume-info')
+
+function addLog(text, type = '') {
+  const div = document.createElement('div')
+  div.className = 'progress-item ' + type
+  div.textContent = (type === 'done' ? '✓ ' : type === 'err' ? '✗ ' : type === 'warn' ? '⏸ ' : '⋯ ') + text
+  log.appendChild(div)
+  log.scrollTop = log.scrollHeight
+}
+
+function extractBizId(input) {
+  input = input.trim()
+  if (!input) return null
+  const m = input.match(/yelp\.com\/biz\/([A-Za-z0-9_-]+)/)
+  if (m) return m[1]
+  if (/^[A-Za-z0-9_-]+$/.test(input)) return input
+  return null
+}
+
+// ── Copy snippet on click ────────────────────────────────────────────────────
+document.querySelectorAll('#snippet-box, #scroll-snippet-box').forEach(pre => {
+  pre.addEventListener('click', () => {
+    const code = pre.querySelector('code').textContent
+    navigator.clipboard.writeText(code).then(() => {
+      const span = pre.querySelector('span')
+      span.textContent = 'copied!'
+      setTimeout(() => { span.textContent = 'click to copy' }, 2000)
+    })
+  })
+})
+
+// ── Check for resumable queue on load ────────────────────────────────────────
+const existing = loadQueue()
+if (existing && existing.remaining.length > 0) {
+  resumeBox.style.display = 'block'
+  const done = existing.total - existing.remaining.length
+  resumeInfo.textContent = `${done} of ${existing.total} imported so far. ${existing.remaining.length} remaining. Collection: "${existing.collection}". Daily API calls used today: ${getDailyCount()}/${DAILY_LIMIT}.`
+}
+
+document.getElementById('btn-clear-queue').addEventListener('click', () => {
+  clearQueue()
+  resumeBox.style.display = 'none'
+})
+
+document.getElementById('btn-resume').addEventListener('click', () => {
+  const q = loadQueue()
+  if (!q) return
+  resumeBox.style.display = 'none'
+  runImport(q.remaining, q.collection, q.total, q.total - q.remaining.length)
+})
+
+// ── Start new import ─────────────────────────────────────────────────────────
+document.getElementById('btn-manual-import').addEventListener('click', () => {
+  const collectionName = document.getElementById('manual-collection').value.trim() || 'Imported'
+  const raw = document.getElementById('manual-ids').value.trim()
+  if (!raw) { alert('Paste your business URLs first.'); return }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
+  const ids = []
+  const skipped = []
+  const savedSet = new Set(loadCollection().map(b => b.id))
+
+  for (const line of lines) {
+    const id = extractBizId(line)
+    if (!id) { skipped.push(line); continue }
+    if (savedSet.has(id)) continue  // already in collection, skip
+    if (ids.includes(id)) continue  // duplicate in paste
+    ids.push(id)
+  }
+
+  if (skipped.length) alert(`Skipped ${skipped.length} unrecognized line(s).`)
+  if (!ids.length) { alert('All businesses are already in your collection or no valid URLs found.'); return }
+
+  // Save full queue
+  saveQueue({ remaining: ids, collection: collectionName, total: ids.length })
+  document.getElementById('btn-manual-import').disabled = true
+  resumeBox.style.display = 'none'
+
+  runImport(ids, collectionName, ids.length, 0)
+})
+
+// ── Import engine ────────────────────────────────────────────────────────────
+async function runImport(ids, collectionName, total, alreadyDone) {
+  progressBox.style.display = 'block'
+  log.innerHTML = ''
+
+  let imported = alreadyDone
+  let failed = 0
+  const remaining = [...ids]
+
+  addLog(`Importing into "${collectionName}" — ${remaining.length} remaining, ${DAILY_LIMIT - getDailyCount()} API calls left today`)
+
+  for (let i = 0; i < remaining.length; i++) {
+    const id = remaining[i]
+
+    // Check daily limit
+    if (getDailyCount() >= DAILY_LIMIT) {
+      // Save remaining for tomorrow
+      saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
+      const left = remaining.length - i
+      addLog(`Daily API limit reached (${DAILY_LIMIT}/day). ${left} businesses queued for tomorrow.`, 'warn')
+      addLog(`Come back tomorrow and click "Resume import" — your progress is saved!`, 'warn')
+      updateProgress(imported, total)
+      return
+    }
+
+    addLog(`Fetching ${id}… (${imported + 1}/${total})`)
+    try {
+      const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+      if (res.status === 429) {
+        // Hit Yelp's own rate limit — save and pause
+        saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
+        addLog('Yelp rate limit hit. Progress saved — resume in a few minutes.', 'warn')
+        updateProgress(imported, total)
+        return
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `HTTP ${res.status}`)
+      }
+      const biz = await res.json()
+      saveBusiness(biz, [], collectionName)
+      addLog(`${biz.name}`, 'done')
+      imported++
+      incDaily()
+    } catch (err) {
+      addLog(`Failed: ${id} — ${err.message}`, 'err')
+      failed++
+    }
+
+    updateProgress(imported, total)
+
+    // Save progress after every successful fetch so closing the tab is safe
+    saveQueue({ remaining: remaining.slice(i + 1), collection: collectionName, total })
+
+    // Stagger: 2s between requests
+    if (i < remaining.length - 1) {
+      await new Promise(r => setTimeout(r, 2000))
+    }
+  }
+
+  clearQueue()
+  addLog(`Import complete! ${imported} saved, ${failed} failed.`, 'done')
+
+  if (imported > 0) {
+    addLog('Redirecting to your list…', '')
+    setTimeout(() => { window.location.href = 'index.html' }, 3000)
+  }
+}
+
+function updateProgress(done, total) {
+  const pct = Math.round((done / total) * 100)
+  progressBar.style.width = pct + '%'
+  progressCounter.textContent = `${done}/${total} (${pct}%)`
+}
+</script>
+</body>
+</html>

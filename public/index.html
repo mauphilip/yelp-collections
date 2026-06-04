@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Collections · Yelp Collections+</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <style>
+    .map-pin {
+      background: #0066cc;
+      color: #fff;
+      padding: .2rem .45rem;
+      border-radius: 20px;
+      font-size: .7rem;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,.3);
+      cursor: pointer;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .map-pin.map-pin-closed { background: #d32f2f; }
+    .map-pin.map-pin-highlight { background: #f5a623; transform: scale(1.15); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">Yelp Collections+</span>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link active">My List</a>
+    <a href="import.html" class="nav-link">Import</a>
+    <a href="discover.html" class="nav-link">Discover</a>
+  </div>
+</nav>
+
+<div class="rate-bar" id="rate-bar"></div>
+
+<div id="closed-banner" class="banner banner-warn" style="display:none;">
+  <span id="closed-msg"></span>
+  <button class="banner-btn" id="btn-remove-closed">Remove all closed</button>
+</div>
+
+<div id="check-banner" class="banner banner-info" style="display:none;">
+  <span id="check-msg">Checking business statuses…</span>
+</div>
+
+<div class="view-toggle">
+  <button class="view-btn active" id="btn-list-view">List</button>
+  <button class="view-btn" id="btn-map-view">Map</button>
+  <button class="view-btn" id="btn-random" title="Pick a random place">🎲 Random</button>
+  <span class="view-count" id="count-label"></span>
+</div>
+
+<!-- List view -->
+<div id="list-container">
+  <div class="cards" id="cards"></div>
+  <div class="empty" id="empty-state" style="display:none;">
+    <h2>No places saved yet</h2>
+    <p>Go to <a href="import.html">Import</a> to bring in your Yelp collections, or use <a href="discover.html">Discover</a> to find and save new places.</p>
+  </div>
+</div>
+
+<!-- Map view -->
+<div id="map-container">
+  <div id="map"></div>
+  <div id="map-sidebar"></div>
+</div>
+
+<!-- Filter drawer -->
+<button class="filter-toggle" id="filter-toggle-btn">⚙ Filters</button>
+
+<div class="filter-drawer" id="filter-drawer">
+  <div class="drawer-handle"></div>
+
+  <div class="filter-label">Status</div>
+  <div class="filter-row" id="status-chips">
+    <span class="chip" data-val="">All</span>
+    <span class="chip" data-val="want">Want to Go</span>
+    <span class="chip" data-val="been">Been There</span>
+  </div>
+
+  <div class="filter-label" style="margin-top:.75rem;">Price</div>
+  <div class="filter-row" id="price-chips">
+    <span class="chip" data-val="$">$</span>
+    <span class="chip" data-val="$$">$$</span>
+    <span class="chip" data-val="$$$">$$$</span>
+    <span class="chip" data-val="$$$$">$$$$</span>
+  </div>
+
+  <div class="filter-label" style="margin-top:.75rem;">Min rating</div>
+  <div class="filter-row" id="rating-chips">
+    <span class="chip" data-val="">Any</span>
+    <span class="chip" data-val="3">3+</span>
+    <span class="chip" data-val="4">4+</span>
+    <span class="chip" data-val="4.5">4.5+</span>
+  </div>
+
+  <div class="filter-label" style="margin-top:.75rem;">Tags</div>
+  <div class="filter-row" id="tag-chips"></div>
+
+  <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+    <div>
+      <div class="filter-label">Sort by</div>
+      <select class="sort-select" id="sort-select">
+        <option value="saved">Date saved</option>
+        <option value="rating">Rating</option>
+        <option value="name">Name</option>
+        <option value="distance">Distance (needs location)</option>
+      </select>
+    </div>
+    <label style="font-size:.85rem;display:flex;align-items:center;gap:.4rem;margin-top:1.1rem;">
+      <input type="checkbox" id="show-closed"> Show closed businesses
+    </label>
+  </div>
+
+  <button id="filter-apply-btn" class="btn-primary" style="margin-top:1rem;">Apply</button>
+</div>
+
+<!-- Random picker modal -->
+<div class="modal-overlay" id="random-modal" style="display:none;">
+  <div class="modal">
+    <h2>🎲 Your pick:</h2>
+    <div class="picked-name" id="picked-name"></div>
+    <div class="picked-meta" id="picked-meta"></div>
+    <br>
+    <a id="picked-link" href="#" target="_blank" rel="noopener" class="btn-sm active">Open on Yelp</a>
+    <button class="modal-close" id="modal-close">Close</button>
+  </div>
+</div>
+
+<footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
+
+<script type="module">
+import {
+  loadCollection, removeBusiness, updateBusiness, addTag, removeTag,
+  getAllTags, filterAndSort, checkClosedBusinesses, pickRandom,
+  starsHtml, categoryLabel, rateLimitStatus
+} from './app.js'
+import { initMap, renderMarkers, highlightMarker, centerOnUser } from './map.js'
+
+// ── State ──────────────────────────────────────────────────────────────────
+let filters = { tags: [], price: [], minRating: '', status: '', showClosed: false }
+let sortBy = 'saved'
+let currentView = 'list'
+let currentList = []
+let leafletMap = null
+
+// ── Rate bar ───────────────────────────────────────────────────────────────
+function updateRateBar() {
+  document.getElementById('rate-bar').textContent = 'API budget: ' + rateLimitStatus()
+}
+
+// ── Filter drawer ──────────────────────────────────────────────────────────
+const drawer = document.getElementById('filter-drawer')
+document.getElementById('filter-toggle-btn').addEventListener('click', () => drawer.classList.toggle('open'))
+document.getElementById('filter-apply-btn').addEventListener('click', () => {
+  drawer.classList.remove('open')
+  render()
+})
+
+function setupChipGroup(containerId, multiSelect, onChange) {
+  const container = document.getElementById(containerId)
+  container.addEventListener('click', e => {
+    const chip = e.target.closest('.chip')
+    if (!chip) return
+    if (multiSelect) {
+      chip.classList.toggle('active')
+    } else {
+      container.querySelectorAll('.chip').forEach(c => c.classList.remove('active'))
+      chip.classList.add('active')
+    }
+    onChange()
+  })
+}
+
+setupChipGroup('status-chips', false, () => {
+  filters.status = document.querySelector('#status-chips .chip.active')?.dataset.val || ''
+})
+setupChipGroup('price-chips', true, () => {
+  filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val)
+})
+setupChipGroup('rating-chips', false, () => {
+  filters.minRating = parseFloat(document.querySelector('#rating-chips .chip.active')?.dataset.val) || 0
+})
+setupChipGroup('tag-chips', true, () => {
+  filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val)
+})
+document.getElementById('sort-select').addEventListener('change', e => { sortBy = e.target.value })
+document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked })
+
+// Set default "All" chips active
+document.querySelector('#status-chips .chip').classList.add('active')
+document.querySelector('#rating-chips .chip').classList.add('active')
+
+function refreshTagChips() {
+  const tags = getAllTags()
+  const container = document.getElementById('tag-chips')
+  const activeTags = new Set(filters.tags)
+  container.innerHTML = tags.map(t =>
+    `<span class="chip${activeTags.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
+  ).join('')
+}
+
+// ── Card rendering ──────────────────────────────────────────────────────────
+function renderCard(biz) {
+  const closedClass = biz.closed_status === 'closed' ? ' closed' : ''
+  const closedBadge = biz.closed_status === 'closed'
+    ? '<div class="closed-badge">Permanently Closed</div>'
+    : biz.closed_status === 'unknown' ? '<div class="warn-badge">Status unknown</div>' : ''
+
+  const img = biz.image_url
+    ? `<img class="card-img" src="${biz.image_url}" alt="${biz.name}" loading="lazy">`
+    : '<div class="card-img-placeholder"></div>'
+
+  const tags = biz.tags.map(t =>
+    `<span class="tag">${t}<span class="tag-remove" data-id="${biz.id}" data-tag="${t}">✕</span></span>`
+  ).join('')
+
+  const wantActive = biz.status === 'want' ? ' active' : ''
+  const beenActive = biz.status === 'been' ? ' active' : ''
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
+
+  return `
+    <div class="card${closedClass}" data-id="${biz.id}" id="card-${biz.id}">
+      ${closedBadge}
+      ${img}
+      <div class="card-body">
+        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
+        <div class="card-meta">
+          <span class="stars">${starsHtml(biz.rating).replace(/<[^>]+>/g,'')}</span>
+          <span>${biz.review_count} reviews</span>
+          ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
+          <span class="cat">${categoryLabel(biz)}</span>
+        </div>
+        <div class="card-meta">${biz.location?.city || ''}</div>
+        <div class="card-tags">${tags}
+          <span class="chip" style="font-size:.7rem;padding:.15rem .4rem;" data-add-tag="${biz.id}">+ tag</span>
+        </div>
+        <textarea class="card-notes" placeholder="Add a note…" data-id="${biz.id}" rows="2">${biz.notes || ''}</textarea>
+      </div>
+      <div class="card-actions">
+        <button class="btn-sm${wantActive}" data-status-id="${biz.id}" data-status-val="want">Want to Go</button>
+        <button class="btn-sm${beenActive}" data-status-id="${biz.id}" data-status-val="been">Been There</button>
+        <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
+        <button class="btn-sm danger" data-remove="${biz.id}">Remove</button>
+      </div>
+    </div>`
+}
+
+// ── Main render ─────────────────────────────────────────────────────────────
+function render() {
+  const all = loadCollection()
+  currentList = filterAndSort(all, { ...filters, sortBy })
+
+  document.getElementById('count-label').textContent = `${currentList.length} place${currentList.length !== 1 ? 's' : ''}`
+  refreshTagChips()
+  updateRateBar()
+
+  const cardsEl = document.getElementById('cards')
+  const emptyEl = document.getElementById('empty-state')
+
+  if (currentList.length === 0) {
+    cardsEl.innerHTML = ''
+    emptyEl.style.display = 'block'
+  } else {
+    emptyEl.style.display = 'none'
+    cardsEl.innerHTML = currentList.map(renderCard).join('')
+  }
+
+  // Map
+  if (currentView === 'map' && leafletMap) {
+    renderMarkers(currentList, id => {
+      highlightMarker(id)
+      renderMapSidebar(id)
+    })
+    renderMapSidebarList()
+  }
+}
+
+// ── Card interaction delegation ─────────────────────────────────────────────
+document.getElementById('cards').addEventListener('click', e => {
+  const removeId = e.target.dataset.remove
+  if (removeId) { removeBusiness(removeId); render(); return }
+
+  const statusId = e.target.dataset.statusId
+  if (statusId) {
+    updateBusiness(statusId, { status: e.target.dataset.statusVal })
+    render(); return
+  }
+
+  const tagRemove = e.target.dataset.tag
+  if (tagRemove) {
+    removeTag(e.target.dataset.id, tagRemove)
+    render(); return
+  }
+
+  const addTagId = e.target.dataset.addTag
+  if (addTagId) {
+    const tag = prompt('New tag name:')?.trim()
+    if (tag) { addTag(addTagId, tag); render() }
+  }
+})
+
+document.getElementById('cards').addEventListener('change', e => {
+  if (e.target.classList.contains('card-notes')) {
+    updateBusiness(e.target.dataset.id, { notes: e.target.value })
+  }
+})
+
+// Hover on card → highlight map marker
+document.getElementById('cards').addEventListener('mouseover', e => {
+  const card = e.target.closest('.card')
+  if (card && leafletMap) highlightMarker(card.dataset.id)
+})
+
+// ── View toggle ─────────────────────────────────────────────────────────────
+document.getElementById('btn-list-view').addEventListener('click', () => {
+  currentView = 'list'
+  document.getElementById('list-container').style.display = 'block'
+  document.getElementById('map-container').classList.remove('visible')
+  document.getElementById('btn-list-view').classList.add('active')
+  document.getElementById('btn-map-view').classList.remove('active')
+})
+
+document.getElementById('btn-map-view').addEventListener('click', () => {
+  currentView = 'map'
+  document.getElementById('list-container').style.display = 'none'
+  document.getElementById('map-container').classList.add('visible')
+  document.getElementById('btn-map-view').classList.add('active')
+  document.getElementById('btn-list-view').classList.remove('active')
+
+  if (!leafletMap) {
+    leafletMap = initMap('map')
+    // "Near me" control
+    const NearMe = L.Control.extend({
+      onAdd() {
+        const btn = L.DomUtil.create('button', 'btn-sm active')
+        btn.textContent = '📍 Near me'
+        btn.style.margin = '8px'
+        btn.onclick = () => {
+          navigator.geolocation.getCurrentPosition(p => {
+            window._userLat = p.coords.latitude
+            window._userLng = p.coords.longitude
+            centerOnUser(p.coords.latitude, p.coords.longitude)
+          })
+        }
+        return btn
+      }
+    })
+    new NearMe({ position: 'topright' }).addTo(leafletMap)
+  }
+
+  renderMarkers(currentList, id => {
+    highlightMarker(id)
+    renderMapSidebar(id)
+  })
+  renderMapSidebarList()
+})
+
+function renderMapSidebarList() {
+  const sidebar = document.getElementById('map-sidebar')
+  sidebar.innerHTML = currentList.map(b => `
+    <div class="map-item" data-id="${b.id}">
+      <div class="map-item-name">${b.name}</div>
+      <div class="map-item-meta">${b.price || ''} · ${categoryLabel(b)}</div>
+    </div>`).join('')
+  sidebar.querySelectorAll('.map-item').forEach(el => {
+    el.addEventListener('click', () => {
+      highlightMarker(el.dataset.id)
+      renderMapSidebar(el.dataset.id)
+    })
+  })
+}
+
+function renderMapSidebar(activeId) {
+  document.querySelectorAll('.map-item').forEach(el => {
+    el.classList.toggle('highlight', el.dataset.id === activeId)
+  })
+}
+
+// ── Random picker ───────────────────────────────────────────────────────────
+document.getElementById('btn-random').addEventListener('click', () => {
+  const pick = pickRandom(currentList.filter(b => b.closed_status !== 'closed'))
+  if (!pick) { alert('No open places in your current list!'); return }
+  document.getElementById('picked-name').textContent = pick.name
+  document.getElementById('picked-meta').textContent =
+    [pick.price, categoryLabel(pick), pick.location?.city].filter(Boolean).join(' · ')
+  document.getElementById('picked-link').href = pick.url
+  document.getElementById('random-modal').style.display = 'flex'
+})
+document.getElementById('modal-close').addEventListener('click', () => {
+  document.getElementById('random-modal').style.display = 'none'
+})
+
+// ── Closed business detection ───────────────────────────────────────────────
+const checkBanner = document.getElementById('check-banner')
+const checkMsg = document.getElementById('check-msg')
+const closedBanner = document.getElementById('closed-banner')
+const closedMsg = document.getElementById('closed-msg')
+
+function runClosedCheck() {
+  const all = loadCollection()
+  const needCheck = all.filter(b => {
+    try {
+      const raw = localStorage.getItem('yc_biz_' + b.id)
+      if (!raw) return true
+      const { ts, ttl } = JSON.parse(raw)
+      return Date.now() - ts > ttl
+    } catch { return true }
+  })
+
+  if (!needCheck.length) {
+    // All cached — just show any known-closed ones
+    const closed = all.filter(b => b.closed_status === 'closed')
+    if (closed.length) showClosedBanner(closed)
+    return
+  }
+
+  checkBanner.style.display = 'flex'
+  checkMsg.textContent = `Checking ${needCheck.length} business status${needCheck.length !== 1 ? 'es' : ''}…`
+
+  checkClosedBusinesses(
+    (checked, total) => {
+      checkMsg.textContent = `Checking statuses… ${checked}/${total}`
+      render()
+    },
+    (closed) => {
+      checkBanner.style.display = 'none'
+      if (closed.length) showClosedBanner(closed)
+      render()
+    }
+  )
+}
+
+function showClosedBanner(closed) {
+  closedMsg.textContent = `${closed.length} place${closed.length !== 1 ? 's' : ''} in your list may have permanently closed.`
+  closedBanner.style.display = 'flex'
+}
+
+document.getElementById('btn-remove-closed').addEventListener('click', () => {
+  loadCollection().filter(b => b.closed_status === 'closed').forEach(b => removeBusiness(b.id))
+  closedBanner.style.display = 'none'
+  render()
+})
+
+// ── Geolocation (background, for distance sort) ─────────────────────────────
+navigator.geolocation?.getCurrentPosition(p => {
+  window._userLat = p.coords.latitude
+  window._userLng = p.coords.longitude
+})
+
+// ── Collection change listener ──────────────────────────────────────────────
+window.addEventListener('collection-updated', render)
+
+// ── Init ────────────────────────────────────────────────────────────────────
+render()
+runClosedCheck()
+</script>
+</body>
+</html>
