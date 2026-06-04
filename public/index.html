@@ -11,41 +11,34 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
-    /* Map pin — clean dot style matching CartoDB light */
-    .map-pin {
-      width: 10px; height: 10px;
+    /* Numbered circle pins — Infatuation style */
+    .num-pin {
       border-radius: 50%;
-      background: var(--blue, #0047FF);
-      border: 2px solid #fff;
-      box-shadow: 0 1px 4px rgba(0,0,0,.25);
+      background: #0047FF;
+      color: #fff;
+      font: 700 10px/1 'Inter', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2.5px solid #fff;
+      box-shadow: 0 1px 5px rgba(0,0,0,.28);
       cursor: pointer;
-      transition: transform .15s;
+      transition: transform .15s, background .15s;
+      letter-spacing: -.01em;
     }
-    .map-pin.map-pin-highlight {
-      background: #f59f00;
-      transform: scale(1.6);
-      z-index: 1000 !important;
+    .num-pin:hover { transform: scale(1.18); }
+    .num-pin.highlighted {
+      background: #f59f00 !important;
+      transform: scale(1.35);
+      box-shadow: 0 2px 10px rgba(245,159,0,.5);
     }
-    .map-pin.map-pin-closed { background: #f03e3e; }
+    .num-pin.closed { background: #f03e3e; }
 
-    /* Tooltip label on hover */
-    .map-pin-label {
-      position: absolute;
-      bottom: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #fff;
-      color: #0a0a0a;
-      font: 600 11px/1 'Inter',sans-serif;
-      white-space: nowrap;
-      padding: 4px 8px;
-      border-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0,0,0,.12);
-      display: none;
-      pointer-events: none;
+    /* Card highlighted when map pin clicked */
+    .card.map-highlighted {
+      outline: 2.5px solid #0047FF;
+      outline-offset: -2px;
     }
-    .map-pin-wrap:hover .map-pin-label { display: block; }
-    .map-pin-wrap { position: relative; }
   </style>
 </head>
 <body>
@@ -94,11 +87,10 @@
     </div>
   </div>
 
-  <!-- Map panel (right side on desktop, overlay on mobile) -->
+  <!-- Map panel — half page, no list below -->
   <div class="map-panel" id="map-panel">
     <button class="map-panel-toggle" id="map-panel-toggle" title="Collapse map">‹</button>
     <div id="map"></div>
-    <div class="map-panel-list" id="map-panel-list"></div>
   </div>
 
 </div>
@@ -229,8 +221,9 @@ function refreshTagChips() {
   ).join('')
 }
 
-// ── Card rendering — no tags, only status badge ───────────────────────────
-function renderCard(biz) {
+// ── Card rendering — numbered, no tags, only status badge ────────────────
+function renderCard(biz, index) {
+  const num = String(index + 1).padStart(2, '0')
   const closed = biz.closed_status === 'closed'
   const imgSrc = getDisplayImage(biz)
   const img = imgSrc
@@ -240,7 +233,6 @@ function renderCard(biz) {
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>'
     : biz.closed_status === 'unknown' ? '<span class="warn-badge">Check</span>' : ''
 
-  // Only show status if "been there"
   const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>' : ''
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
@@ -250,7 +242,8 @@ function renderCard(biz) {
   const notes = renderNotes(biz.notes)
 
   return `
-    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}">
+    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}" data-num="${index + 1}">
+      <span class="card-num">${num}</span>
       ${closedBadge}
       <div class="card-img-wrap">${img}</div>
       <div class="card-body">
@@ -281,11 +274,11 @@ function render() {
   const cardsEl = document.getElementById('cards')
   const emptyEl = document.getElementById('empty-state')
   if (!currentList.length) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
-  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map(renderCard).join('') }
+  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map((b, i) => renderCard(b, i)).join('') }
 
   if (mapVisible && leafletMap) {
-    renderMarkers(currentList, id => { highlightMarker(id); highlightMapListItem(id) })
-    renderMapPanelList()
+    // Pass numbers (1-based index) along with businesses
+    renderMarkers(currentList.map((b, i) => ({ ...b, _num: i + 1 })), id => { highlightMarker(id); scrollCardIntoView(id) })
   }
 }
 
@@ -321,8 +314,7 @@ function openMap() {
   document.getElementById('btn-list-view').classList.remove('active')
   mapToggleBtn.textContent = '›'
   ensureMap()
-  renderMarkers(currentList, id => { highlightMarker(id); highlightMapListItem(id) })
-  renderMapPanelList()
+  renderMarkers(currentList.map((b, i) => ({ ...b, _num: i + 1 })), id => { highlightMarker(id); scrollCardIntoView(id) })
   setTimeout(() => leafletMap.invalidateSize(), 320)
 }
 
@@ -347,25 +339,14 @@ document.getElementById('btn-list-view').addEventListener('click', closeMap)
 document.getElementById('btn-map-view').addEventListener('click', openMap)
 mapToggleBtn.addEventListener('click', toggleCollapseMap)
 
-function renderMapPanelList() {
-  document.getElementById('map-panel-list').innerHTML = currentList.map(b => {
-    const img = getDisplayImage(b)
-    return `<div class="map-item" data-id="${b.id}">
-      ${img ? `<img class="map-item-thumb" src="${img}" loading="lazy">` : '<div class="map-item-thumb"></div>'}
-      <div class="map-item-info">
-        <div class="map-item-name">${b.name}</div>
-        <div class="map-item-meta">${[b.price, b.location?.city].filter(Boolean).join(' · ')}</div>
-      </div>
-    </div>`
-  }).join('')
-  document.querySelectorAll('.map-item').forEach(el => {
-    el.addEventListener('click', () => { highlightMarker(el.dataset.id); highlightMapListItem(el.dataset.id) })
-  })
-}
-
-function highlightMapListItem(id) {
-  document.querySelectorAll('.map-item').forEach(el => el.classList.toggle('highlight', el.dataset.id === id))
-  document.querySelector(`.map-item[data-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+// When a map pin is clicked, highlight the corresponding card in the list
+function scrollCardIntoView(id) {
+  const card = document.querySelector(`.card[data-id="${id}"]`)
+  if (!card) return
+  // Remove previous highlight
+  document.querySelectorAll('.card.map-highlighted').forEach(c => c.classList.remove('map-highlighted'))
+  card.classList.add('map-highlighted')
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 // ── Random picker ─────────────────────────────────────────────────────────

@@ -197,7 +197,6 @@ a:hover { text-decoration: underline; }
   position: relative;
 }
 
-/* list scrolls independently */
 #list-container {
   flex: 1;
   overflow-y: auto;
@@ -205,11 +204,11 @@ a:hover { text-decoration: underline; }
   transition: flex .3s ease;
 }
 
-/* Map panel */
+/* Map panel — 50% width when open */
 .map-panel {
   width: 0;
   overflow: hidden;
-  transition: width .3s ease;
+  transition: width .32s ease;
   position: relative;
   border-left: 0px solid var(--border);
   display: flex;
@@ -217,21 +216,19 @@ a:hover { text-decoration: underline; }
   background: var(--bg);
   flex-shrink: 0;
 }
-
 .app-body.map-open .map-panel {
-  width: 380px;
+  width: 50%;
   border-left-width: 1px;
 }
 
-/* Collapsed state: map panel shrinks but toggle button stays visible */
+/* Collapsed — narrow strip so toggle tab remains visible */
 .map-panel.collapsed {
   width: 20px !important;
   overflow: visible;
 }
-.map-panel.collapsed #map,
-.map-panel.collapsed .map-panel-list { visibility: hidden; }
+.map-panel.collapsed #map { visibility: hidden; }
 
-/* Toggle tab on left edge of map panel */
+/* Toggle tab on left edge */
 .map-panel-toggle {
   position: absolute;
   left: -14px;
@@ -239,7 +236,7 @@ a:hover { text-decoration: underline; }
   transform: translateY(-50%);
   z-index: 10;
   width: 24px;
-  height: 48px;
+  height: 52px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px 0 0 6px;
@@ -250,27 +247,16 @@ a:hover { text-decoration: underline; }
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: -2px 0 8px rgba(0,0,0,.07);
   transition: color .15s, background .15s;
-  box-shadow: -2px 0 6px rgba(0,0,0,.06);
 }
 .app-body:not(.map-open) .map-panel-toggle { display: none; }
 .map-panel-toggle:hover { color: var(--text); background: var(--gray-light); }
 
-/* Map itself takes available height */
-#map {
-  flex: 1;
-  min-height: 0;
-}
+/* Map fills entire panel */
+#map { flex: 1; min-height: 0; width: 100%; }
 
-/* Map place list below map */
-.map-panel-list {
-  height: 220px;
-  overflow-y: auto;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-/* Mobile: map panel becomes full-screen overlay */
+/* Mobile: full-screen slide-over */
 @media (max-width: 768px) {
   .app-body {
     height: auto;
@@ -278,27 +264,40 @@ a:hover { text-decoration: underline; }
     flex-direction: column;
   }
   #list-container { height: auto; overflow: visible; }
-
   .map-panel {
     position: fixed;
-    inset: 93px 0 0 0; /* nav + toolbar */
+    inset: 93px 0 0 0;
     width: 100% !important;
     height: calc(100dvh - 93px);
     transform: translateX(100%);
     transition: transform .3s ease;
     border-left: none;
     z-index: 85;
-    border-top: 1px solid var(--border);
   }
-  .app-body.map-open .map-panel {
-    transform: translateX(0);
-    width: 100% !important;
-  }
+  .app-body.map-open .map-panel { transform: translateX(0); width: 100% !important; }
   .map-panel.collapsed { width: 100% !important; transform: translateX(100%); }
   .map-panel-toggle { display: none !important; }
-
   .cards { padding-bottom: 5rem; }
 }
+
+/* Card number badge */
+.card-num {
+  position: absolute;
+  top: .6rem;
+  left: .6rem;
+  z-index: 3;
+  background: rgba(0,0,0,.65);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: .22rem .4rem;
+  border-radius: 4px;
+  letter-spacing: .02em;
+  font-family: var(--font);
+  backdrop-filter: blur(4px);
+}
+.card.map-highlighted .card-num { background: var(--blue); }
 
 /* ── Card Grid ────────────────────────────────────────────────────────────── */
 .cards {
@@ -558,34 +557,6 @@ a:hover { text-decoration: underline; }
 }
 .card-img-wrap:hover .card-img-edit { display: block; }
 
-/* ── Map panel list items ─────────────────────────────────────────────────── */
-.map-item {
-  padding: .6rem .875rem;
-  border-bottom: 1px solid var(--border-subtle);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: .65rem;
-  transition: background .1s;
-}
-.map-item:hover, .map-item.highlight { background: var(--blue-light); }
-.map-item-thumb {
-  width: 40px; height: 40px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-  flex-shrink: 0;
-  background: var(--gray-light);
-}
-.map-item-info { flex: 1; min-width: 0; }
-.map-item-name {
-  font-size: .8rem;
-  font-weight: 700;
-  letter-spacing: -.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.map-item-meta { color: var(--text-muted); font-size: .7rem; margin-top: .1rem; }
 
 /* ── Filter drawer ────────────────────────────────────────────────────────── */
 .filter-drawer {
