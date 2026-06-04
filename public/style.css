@@ -107,20 +107,27 @@ a:hover { text-decoration: underline; }
 .nav-link:hover { color: var(--text); background: var(--gray-light); text-decoration: none; }
 .nav-link.active { color: var(--blue); font-weight: 600; }
 
-/* ── View toolbar ─────────────────────────────────────────────────────────── */
-.view-toggle {
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+.toolbar {
   display: flex;
-  gap: .35rem;
-  padding: .5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: .45rem 1rem;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  align-items: center;
   position: sticky;
   top: 52px;
   z-index: 90;
+  gap: .75rem;
 }
-.view-btn {
-  padding: .3rem .7rem;
+.toolbar-left { display: flex; align-items: center; gap: .65rem; }
+.toolbar-right { display: flex; align-items: center; gap: .5rem; }
+
+.toolbar-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .75rem;
   border-radius: var(--radius-full);
   border: 1.5px solid var(--border);
   background: transparent;
@@ -128,21 +135,169 @@ a:hover { text-decoration: underline; }
   font-size: .76rem;
   font-weight: 600;
   letter-spacing: .01em;
-  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: var(--font);
+}
+.toolbar-filter-btn:hover { border-color: var(--text); color: var(--text); }
+.toolbar-filter-btn.has-filters { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+.toolbar-count {
+  font-size: .72rem;
+  color: var(--text-subtle);
+  font-weight: 600;
+  letter-spacing: .03em;
+}
+
+/* Segmented List/Map control */
+.view-seg {
+  display: flex;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.seg-btn {
+  padding: .28rem .7rem;
+  border: none;
+  border-right: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn.active { background: var(--text); color: var(--surface); }
+[data-theme="dark"] .seg-btn.active { background: var(--text); color: var(--bg); }
+.seg-btn:hover:not(.active) { color: var(--text); }
+
+/* Reuse .view-btn for the 🎲 button */
+.view-btn {
+  padding: .28rem .6rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: .82rem;
   cursor: pointer;
   transition: all .15s;
   font-family: var(--font);
 }
 .view-btn:hover { border-color: var(--text); color: var(--text); }
 .view-btn.active { background: var(--text); color: var(--surface); border-color: var(--text); }
-[data-theme="dark"] .view-btn.active { background: var(--text); color: var(--bg); }
-.view-count {
-  margin-left: auto;
-  font-size: .72rem;
-  color: var(--text-subtle);
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+
+/* ── App body — list + collapsible map panel ──────────────────────────────── */
+.app-body {
+  display: flex;
+  height: calc(100dvh - 52px - 41px); /* nav + toolbar */
+  overflow: hidden;
+  position: relative;
+}
+
+/* list scrolls independently */
+#list-container {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+  transition: flex .3s ease;
+}
+
+/* Map panel */
+.map-panel {
+  width: 0;
+  overflow: hidden;
+  transition: width .3s ease;
+  position: relative;
+  border-left: 0px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.app-body.map-open .map-panel {
+  width: 380px;
+  border-left-width: 1px;
+}
+
+/* Collapsed state: map panel shrinks but toggle button stays visible */
+.map-panel.collapsed {
+  width: 20px !important;
+  overflow: visible;
+}
+.map-panel.collapsed #map,
+.map-panel.collapsed .map-panel-list { visibility: hidden; }
+
+/* Toggle tab on left edge of map panel */
+.map-panel-toggle {
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 24px;
+  height: 48px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+  cursor: pointer;
+  font-size: .9rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, background .15s;
+  box-shadow: -2px 0 6px rgba(0,0,0,.06);
+}
+.app-body:not(.map-open) .map-panel-toggle { display: none; }
+.map-panel-toggle:hover { color: var(--text); background: var(--gray-light); }
+
+/* Map itself takes available height */
+#map {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Map place list below map */
+.map-panel-list {
+  height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Mobile: map panel becomes full-screen overlay */
+@media (max-width: 768px) {
+  .app-body {
+    height: auto;
+    overflow: visible;
+    flex-direction: column;
+  }
+  #list-container { height: auto; overflow: visible; }
+
+  .map-panel {
+    position: fixed;
+    inset: 93px 0 0 0; /* nav + toolbar */
+    width: 100% !important;
+    height: calc(100dvh - 93px);
+    transform: translateX(100%);
+    transition: transform .3s ease;
+    border-left: none;
+    z-index: 85;
+    border-top: 1px solid var(--border);
+  }
+  .app-body.map-open .map-panel {
+    transform: translateX(0);
+    width: 100% !important;
+  }
+  .map-panel.collapsed { width: 100% !important; transform: translateX(100%); }
+  .map-panel-toggle { display: none !important; }
+
+  .cards { padding-bottom: 5rem; }
 }
 
 /* ── Card Grid ────────────────────────────────────────────────────────────── */
@@ -403,82 +558,19 @@ a:hover { text-decoration: underline; }
 }
 .card-img-wrap:hover .card-img-edit { display: block; }
 
-/* ── MAP — overlay approach ───────────────────────────────────────────────── */
-/* Map is a full-screen overlay that slides in, never eats list space */
-#map-overlay {
-  position: fixed;
-  inset: 52px 0 0 0;  /* below nav */
-  z-index: 80;
-  display: flex;
-  flex-direction: column;
-  transform: translateY(100%);
-  transition: transform .35s cubic-bezier(.32,.72,0,1);
-  pointer-events: none;
-}
-#map-overlay.open {
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-#map { flex: 1; }
-
-/* Map bottom sheet — shows filtered list over the map */
-.map-sheet {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  max-height: 40dvh;
-  overflow-y: auto;
-  box-shadow: 0 -4px 20px rgba(0,0,0,.1);
-}
-.map-sheet-handle {
-  width: 36px; height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: .65rem auto .5rem;
-  cursor: ns-resize;
-  flex-shrink: 0;
-}
-.map-sheet-header {
-  padding: 0 1rem .5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.map-sheet-title {
-  font-size: .72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--text-muted);
-}
-.map-close-btn {
-  background: var(--gray-light);
-  border: none;
-  border-radius: var(--radius-full);
-  padding: .25rem .75rem;
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  cursor: pointer;
-  color: var(--text);
-  font-family: var(--font);
-  transition: background .15s;
-}
-.map-close-btn:hover { background: var(--border); }
-
+/* ── Map panel list items ─────────────────────────────────────────────────── */
 .map-item {
-  padding: .65rem 1rem;
+  padding: .6rem .875rem;
   border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: .75rem;
+  gap: .65rem;
   transition: background .1s;
 }
-.map-item:hover, .map-item.highlight { background: var(--gray-light); }
+.map-item:hover, .map-item.highlight { background: var(--blue-light); }
 .map-item-thumb {
-  width: 44px; height: 44px;
+  width: 40px; height: 40px;
   border-radius: var(--radius-sm);
   object-fit: cover;
   flex-shrink: 0;
@@ -486,40 +578,16 @@ a:hover { text-decoration: underline; }
 }
 .map-item-info { flex: 1; min-width: 0; }
 .map-item-name {
-  font-size: .84rem;
+  font-size: .8rem;
   font-weight: 700;
   letter-spacing: -.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.map-item-meta { color: var(--text-muted); font-size: .72rem; margin-top: .1rem; }
+.map-item-meta { color: var(--text-muted); font-size: .7rem; margin-top: .1rem; }
 
 /* ── Filter drawer ────────────────────────────────────────────────────────── */
-.filter-toggle {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1rem;
-  background: var(--text);
-  color: var(--surface);
-  border: none;
-  border-radius: var(--radius-full);
-  padding: .65rem 1.25rem;
-  font-size: .78rem;
-  font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-family: var(--font);
-  transition: transform .15s, box-shadow .15s;
-}
-.filter-toggle:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
-
 .filter-drawer {
   position: fixed;
   bottom: 0;
