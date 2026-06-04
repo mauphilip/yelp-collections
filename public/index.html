@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My Collections · Yelp Collections+</title>
+  <title>My Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -11,59 +11,86 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
-    .map-pin { background: #0066cc; color: #fff; padding: .2rem .45rem; border-radius: 20px; font-size: .7rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.3); cursor: pointer; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-    .map-pin.map-pin-closed { background: #d32f2f; }
-    .map-pin.map-pin-highlight { background: #f5a623; transform: scale(1.15); }
+    .map-pin {
+      background: var(--blue, #0047FF);
+      color: #fff;
+      padding: .22rem .5rem;
+      border-radius: 20px;
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .01em;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      cursor: pointer;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1.5px solid rgba(255,255,255,.3);
+    }
+    .map-pin.map-pin-closed { background: #f03e3e; }
+    .map-pin.map-pin-highlight { background: #f59f00; transform: scale(1.1); z-index: 1000 !important; }
   </style>
 </head>
 <body>
 
 <nav class="nav">
-  <span class="nav-logo">Yelp Collections+</span>
+  <span class="nav-logo">Collections</span>
   <div class="nav-links">
     <a href="index.html" class="nav-link active">Browse</a>
     <a href="discover.html" class="nav-link">Discover</a>
     <a href="admin.html" class="nav-link">Admin</a>
-    <button class="dark-toggle" id="dark-toggle">🌙 Dark</button>
+    <button class="dark-toggle" id="dark-toggle">Dark</button>
   </div>
 </nav>
+
+<div id="closed-banner" class="banner banner-warn" style="display:none;">
+  <span id="closed-msg"></span>
+  <button class="banner-btn" id="btn-remove-closed">Remove closed</button>
+</div>
 
 <div class="view-toggle">
   <button class="view-btn active" id="btn-list-view">List</button>
   <button class="view-btn" id="btn-map-view">Map</button>
-  <button class="view-btn" id="btn-random" title="Pick a random place">🎲 Random</button>
+  <button class="view-btn" id="btn-random">🎲 Pick</button>
   <span class="view-count" id="count-label"></span>
 </div>
 
-<!-- List view -->
+<!-- ── List view ── -->
 <div id="list-container">
   <div class="cards" id="cards"></div>
   <div class="empty" id="empty-state" style="display:none;">
-    <h2>No places saved yet</h2>
-    <p>Go to <a href="admin.html">Admin</a> to import your Yelp collections.</p>
+    <h2>Nothing here yet</h2>
+    <p>Head to <a href="admin.html">Admin</a> to import your Yelp collections.</p>
   </div>
 </div>
 
-<!-- Map view -->
-<div id="map-container">
+<!-- ── Map overlay — slides up over the full screen ── -->
+<div id="map-overlay">
   <div id="map"></div>
-  <div id="map-sidebar"></div>
+  <div class="map-sheet" id="map-sheet">
+    <div class="map-sheet-handle"></div>
+    <div class="map-sheet-header">
+      <span class="map-sheet-title" id="map-sheet-count"></span>
+      <button class="map-close-btn" id="map-close-btn">← Back to list</button>
+    </div>
+    <div id="map-list"></div>
+  </div>
 </div>
 
-<!-- Filter drawer -->
-<button class="filter-toggle" id="filter-toggle-btn">⚙ Filters</button>
+<!-- ── Filter drawer ── -->
+<button class="filter-toggle" id="filter-toggle-btn">Filter</button>
 
 <div class="filter-drawer" id="filter-drawer">
   <div class="drawer-handle"></div>
 
-  <div class="filter-label">Status</div>
+  <span class="filter-label">Status</span>
   <div class="filter-row" id="status-chips">
-    <span class="chip" data-val="">All</span>
+    <span class="chip active" data-val="">All</span>
     <span class="chip" data-val="want">Want to Go</span>
     <span class="chip" data-val="been">Been There</span>
   </div>
 
-  <div class="filter-label" style="margin-top:.75rem;">Price</div>
+  <span class="filter-label" style="margin-top:.875rem;display:block;">Price</span>
   <div class="filter-row" id="price-chips">
     <span class="chip" data-val="$">$</span>
     <span class="chip" data-val="$$">$$</span>
@@ -71,44 +98,44 @@
     <span class="chip" data-val="$$$$">$$$$</span>
   </div>
 
-  <div class="filter-label" style="margin-top:.75rem;">Min rating</div>
+  <span class="filter-label" style="margin-top:.875rem;display:block;">Rating</span>
   <div class="filter-row" id="rating-chips">
-    <span class="chip" data-val="">Any</span>
+    <span class="chip active" data-val="">Any</span>
     <span class="chip" data-val="3">3+</span>
     <span class="chip" data-val="4">4+</span>
     <span class="chip" data-val="4.5">4.5+</span>
   </div>
 
-  <div class="filter-label" style="margin-top:.75rem;">Tags</div>
+  <span class="filter-label" style="margin-top:.875rem;display:block;">Tags</span>
   <div class="filter-row" id="tag-chips"></div>
 
-  <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+  <div style="margin-top:.875rem;display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
     <div>
-      <div class="filter-label">Sort by</div>
+      <span class="filter-label" style="display:block;margin-bottom:.35rem;">Sort</span>
       <select class="sort-select" id="sort-select">
-        <option value="saved">Date saved</option>
+        <option value="saved">Date added</option>
         <option value="rating">Rating</option>
-        <option value="name">Name</option>
-        <option value="distance">Distance (needs location)</option>
+        <option value="name">Name A–Z</option>
+        <option value="distance">Distance</option>
       </select>
     </div>
-    <label style="font-size:.85rem;display:flex;align-items:center;gap:.4rem;margin-top:1.1rem;">
+    <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
       <input type="checkbox" id="show-closed"> Show closed
     </label>
   </div>
 
-  <button id="filter-apply-btn" class="btn-primary" style="margin-top:1rem;">Apply</button>
+  <button id="filter-apply-btn" class="btn-primary" style="margin-top:1.25rem;">Apply filters</button>
 </div>
 
-<!-- Random picker modal -->
+<!-- ── Random picker modal ── -->
 <div class="modal-overlay" id="random-modal" style="display:none;">
   <div class="modal">
-    <h2>🎲 Your pick:</h2>
+    <h2>Tonight you're going to</h2>
     <div class="picked-name" id="picked-name"></div>
     <div class="picked-meta" id="picked-meta"></div>
     <br>
-    <a id="picked-link" href="#" target="_blank" rel="noopener" class="btn-sm active">Open on Yelp</a>
-    <button class="modal-close" id="modal-close">Close</button>
+    <a id="picked-link" href="#" target="_blank" rel="noopener" class="btn-sm active" style="display:inline-block;padding:.45rem 1rem;">View on Yelp →</a>
+    <button class="modal-close" id="modal-close">Dismiss</button>
   </div>
 </div>
 
@@ -121,28 +148,51 @@ import {
 } from './app.js'
 import { initMap, renderMarkers, highlightMarker, centerOnUser } from './map.js'
 
+// ── State ─────────────────────────────────────────────────────────────────
 let filters = { tags: [], price: [], minRating: '', status: '', showClosed: false }
 let sortBy = 'saved'
-let currentView = 'list'
 let currentList = []
 let leafletMap = null
+let mapOpen = false
 
-// ── Filter drawer ──────────────────────────────────────────────────────────
+// ── Dark mode ─────────────────────────────────────────────────────────────
+const darkToggle = document.getElementById('dark-toggle')
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  darkToggle.textContent = dark ? 'Light' : 'Dark'
+}
+const savedTheme = localStorage.getItem('yc_theme')
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+applyTheme(savedTheme ? savedTheme === 'dark' : prefersDark)
+darkToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  applyTheme(!isDark)
+  localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+})
+
+// ── Filter drawer ─────────────────────────────────────────────────────────
 const drawer = document.getElementById('filter-drawer')
 document.getElementById('filter-toggle-btn').addEventListener('click', () => drawer.classList.toggle('open'))
 document.getElementById('filter-apply-btn').addEventListener('click', () => { drawer.classList.remove('open'); render() })
 
-function setupChipGroup(containerId, multiSelect, onChange) {
-  const container = document.getElementById(containerId)
-  container.addEventListener('click', e => {
+// Close drawer on outside click
+document.addEventListener('click', e => {
+  if (drawer.classList.contains('open') &&
+      !drawer.contains(e.target) &&
+      !e.target.closest('#filter-toggle-btn')) {
+    drawer.classList.remove('open')
+  }
+})
+
+function setupChipGroup(id, multi, cb) {
+  document.getElementById(id).addEventListener('click', e => {
     const chip = e.target.closest('.chip')
     if (!chip) return
-    if (multiSelect) { chip.classList.toggle('active') }
-    else { container.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active') }
-    onChange()
+    if (multi) chip.classList.toggle('active')
+    else { document.querySelectorAll(`#${id} .chip`).forEach(c => c.classList.remove('active')); chip.classList.add('active') }
+    cb()
   })
 }
-
 setupChipGroup('status-chips', false, () => { filters.status = document.querySelector('#status-chips .chip.active')?.dataset.val || '' })
 setupChipGroup('price-chips', true, () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
 setupChipGroup('rating-chips', false, () => { filters.minRating = parseFloat(document.querySelector('#rating-chips .chip.active')?.dataset.val) || 0 })
@@ -150,52 +200,46 @@ setupChipGroup('tag-chips', true, () => { filters.tags = [...document.querySelec
 document.getElementById('sort-select').addEventListener('change', e => { sortBy = e.target.value })
 document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked })
 
-document.querySelector('#status-chips .chip').classList.add('active')
-document.querySelector('#rating-chips .chip').classList.add('active')
-
 function refreshTagChips() {
   const tags = getAllTags()
-  const container = document.getElementById('tag-chips')
-  const activeTags = new Set(filters.tags)
-  container.innerHTML = tags.map(t =>
-    `<span class="chip${activeTags.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
+  const active = new Set(filters.tags)
+  document.getElementById('tag-chips').innerHTML = tags.map(t =>
+    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
   ).join('')
 }
 
-// ── View-only card rendering ───────────────────────────────────────────────
+// ── Card rendering ────────────────────────────────────────────────────────
 function renderCard(biz) {
-  const closedClass = biz.closed_status === 'closed' ? ' closed' : ''
-  const closedBadge = biz.closed_status === 'closed'
-    ? '<div class="closed-badge">Permanently Closed</div>'
-    : biz.closed_status === 'unknown' ? '<div class="warn-badge">Status unknown</div>' : ''
-
+  const closed = biz.closed_status === 'closed'
   const imgSrc = getDisplayImage(biz)
   const img = imgSrc
     ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
     : '<div class="card-img-placeholder"></div>'
 
-  const tags = biz.tags.map(t => `<span class="tag">${t}</span>`).join('')
+  const closedBadge = closed
+    ? '<span class="closed-badge">Closed</span>'
+    : biz.closed_status === 'unknown' ? '<span class="warn-badge">Check status</span>' : ''
 
   const statusBadge = biz.status === 'been'
-    ? '<span class="status-badge been">✓ Been There</span>'
-    : '<span class="status-badge want">♡ Want to Go</span>'
+    ? '<span class="status-badge been">Been</span>'
+    : ''
+
+  const tags = biz.tags.map(t => `<span class="tag">${t}</span>`).join('')
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
 
   let website = ''
   if (biz.website) {
-    try { website = `<a class="card-website" href="${biz.website}" target="_blank" rel="noopener">🔗 ${new URL(biz.website).hostname.replace('www.','')}</a>` }
-    catch { website = '' }
+    try { website = `· <a class="card-website" href="${biz.website}" target="_blank" rel="noopener">${new URL(biz.website).hostname.replace('www.','')}</a>` }
+    catch {}
   }
 
   const notes = renderNotes(biz.notes)
 
   return `
-    <div class="card${closedClass}" data-id="${biz.id}">
+    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}">
       ${closedBadge}
-      <div class="card-img-wrap">
-        ${img}
-      </div>
+      <div class="card-img-wrap">${img}</div>
       <div class="card-body">
         <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
         <div class="card-meta">
@@ -204,92 +248,107 @@ function renderCard(biz) {
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
         </div>
         <div class="card-meta"><span class="cat">${categoryLabel(biz)}</span></div>
-        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', ' + biz.location.state : ''} ${website}</div>` : ''}
-        <div class="card-tags">${statusBadge} ${tags}</div>
+        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''} ${website}</div>` : ''}
+        <div class="card-tags">${statusBadge}${tags}</div>
         ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
       </div>
       <div class="card-actions">
-        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">View on Yelp</a>
+        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
         <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
       </div>
     </div>`
 }
 
-// ── Render ──────────────────────────────────────────────────────────────────
+// ── Render ────────────────────────────────────────────────────────────────
 function render() {
-  const all = loadCollection()
-  currentList = filterAndSort(all, { ...filters, sortBy })
-  document.getElementById('count-label').textContent = `${currentList.length} place${currentList.length !== 1 ? 's' : ''}`
+  currentList = filterAndSort(loadCollection(), { ...filters, sortBy })
+  document.getElementById('count-label').textContent = `${currentList.length} places`
   refreshTagChips()
 
   const cardsEl = document.getElementById('cards')
   const emptyEl = document.getElementById('empty-state')
-  if (currentList.length === 0) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
+  if (!currentList.length) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
   else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map(renderCard).join('') }
 
-  if (currentView === 'map' && leafletMap) {
-    renderMarkers(currentList, id => { highlightMarker(id); renderMapSidebar(id) })
-    renderMapSidebarList()
+  if (mapOpen && leafletMap) {
+    renderMarkers(currentList, id => { highlightMarker(id); highlightMapListItem(id) })
+    renderMapList()
   }
 }
 
-// ── View toggle ────────────────────────────────────────────────────────────
-document.getElementById('btn-list-view').addEventListener('click', () => {
-  currentView = 'list'
-  document.getElementById('list-container').style.display = 'block'
-  document.getElementById('map-container').classList.remove('visible')
-  document.getElementById('btn-list-view').classList.add('active')
-  document.getElementById('btn-map-view').classList.remove('active')
-})
+// ── Map overlay ───────────────────────────────────────────────────────────
+const mapOverlay = document.getElementById('map-overlay')
 
-document.getElementById('btn-map-view').addEventListener('click', () => {
-  currentView = 'map'
-  document.getElementById('list-container').style.display = 'none'
-  document.getElementById('map-container').classList.add('visible')
+function openMap() {
+  mapOpen = true
+  mapOverlay.classList.add('open')
   document.getElementById('btn-map-view').classList.add('active')
   document.getElementById('btn-list-view').classList.remove('active')
+
   if (!leafletMap) {
     leafletMap = initMap('map')
+
+    // Near me control
     const NearMe = L.Control.extend({
       onAdd() {
-        const btn = L.DomUtil.create('button', 'btn-sm active')
+        const btn = L.DomUtil.create('button')
+        btn.style.cssText = 'background:#fff;border:1.5px solid #ddd;border-radius:6px;padding:.3rem .7rem;font-size:.72rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;margin:8px;'
         btn.textContent = '📍 Near me'
-        btn.style.margin = '8px'
-        btn.onclick = () => {
-          navigator.geolocation.getCurrentPosition(p => {
-            window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
-            centerOnUser(p.coords.latitude, p.coords.longitude)
-          })
-        }
+        btn.onclick = () => navigator.geolocation.getCurrentPosition(p => {
+          window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
+          centerOnUser(p.coords.latitude, p.coords.longitude)
+        })
         return btn
       }
     })
     new NearMe({ position: 'topright' }).addTo(leafletMap)
   }
-  renderMarkers(currentList, id => { highlightMarker(id); renderMapSidebar(id) })
-  renderMapSidebarList()
-})
 
-function renderMapSidebarList() {
-  const sidebar = document.getElementById('map-sidebar')
-  sidebar.innerHTML = currentList.map(b => `
-    <div class="map-item" data-id="${b.id}">
-      <div class="map-item-name">${b.name}</div>
-      <div class="map-item-meta">${b.price || ''} · ${categoryLabel(b)}</div>
-    </div>`).join('')
-  sidebar.querySelectorAll('.map-item').forEach(el => {
-    el.addEventListener('click', () => { highlightMarker(el.dataset.id); renderMapSidebar(el.dataset.id) })
+  renderMarkers(currentList, id => { highlightMarker(id); highlightMapListItem(id) })
+  renderMapList()
+  // Invalidate size after CSS transition
+  setTimeout(() => leafletMap.invalidateSize(), 350)
+}
+
+function closeMap() {
+  mapOpen = false
+  mapOverlay.classList.remove('open')
+  document.getElementById('btn-list-view').classList.add('active')
+  document.getElementById('btn-map-view').classList.remove('active')
+}
+
+function renderMapList() {
+  const list = currentList
+  document.getElementById('map-sheet-count').textContent = `${list.length} places`
+  document.getElementById('map-list').innerHTML = list.map(b => {
+    const img = getDisplayImage(b)
+    return `<div class="map-item" data-id="${b.id}">
+      ${img ? `<img class="map-item-thumb" src="${img}" loading="lazy">` : '<div class="map-item-thumb"></div>'}
+      <div class="map-item-info">
+        <div class="map-item-name">${b.name}</div>
+        <div class="map-item-meta">${[b.price, categoryLabel(b), b.location?.city].filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>`
+  }).join('')
+  document.querySelectorAll('.map-item').forEach(el => {
+    el.addEventListener('click', () => { highlightMarker(el.dataset.id); highlightMapListItem(el.dataset.id) })
   })
 }
 
-function renderMapSidebar(activeId) {
-  document.querySelectorAll('.map-item').forEach(el => el.classList.toggle('highlight', el.dataset.id === activeId))
+function highlightMapListItem(id) {
+  document.querySelectorAll('.map-item').forEach(el => el.classList.toggle('highlight', el.dataset.id === id))
+  const active = document.querySelector(`.map-item[data-id="${id}"]`)
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
-// ── Random picker ──────────────────────────────────────────────────────────
+document.getElementById('btn-list-view').addEventListener('click', closeMap)
+document.getElementById('btn-map-view').addEventListener('click', openMap)
+document.getElementById('map-close-btn').addEventListener('click', closeMap)
+
+// ── Random picker ─────────────────────────────────────────────────────────
 document.getElementById('btn-random').addEventListener('click', () => {
   const pick = pickRandom(currentList.filter(b => b.closed_status !== 'closed'))
-  if (!pick) { alert('No open places in your current list!'); return }
+  if (!pick) { alert('No open places in your current filtered list!'); return }
   document.getElementById('picked-name').textContent = pick.name
   document.getElementById('picked-meta').textContent =
     [pick.price, categoryLabel(pick), pick.location?.city].filter(Boolean).join(' · ')
@@ -300,30 +359,28 @@ document.getElementById('modal-close').addEventListener('click', () => {
   document.getElementById('random-modal').style.display = 'none'
 })
 
-// ── Dark mode ──────────────────────────────────────────────────────────────
-const darkToggle = document.getElementById('dark-toggle')
-function applyTheme(dark) {
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-  darkToggle.textContent = dark ? '☀️ Light' : '🌙 Dark'
+// ── Closed-business banner (read from stored state, no API calls on browse page) ──
+function checkClosedFromCache() {
+  const all = loadCollection()
+  const closed = all.filter(b => b.closed_status === 'closed')
+  if (closed.length) {
+    document.getElementById('closed-msg').textContent = `${closed.length} place${closed.length !== 1 ? 's' : ''} in your list may have permanently closed.`
+    document.getElementById('closed-banner').style.display = 'flex'
+  }
 }
-// Respect saved preference, then system preference
-const savedTheme = localStorage.getItem('yc_theme')
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-applyTheme(savedTheme ? savedTheme === 'dark' : prefersDark)
-
-darkToggle.addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-  applyTheme(!isDark)
-  localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+document.getElementById('btn-remove-closed').addEventListener('click', () => {
+  // Just hide banner on browse page — can't remove from view-only page
+  document.getElementById('closed-banner').style.display = 'none'
 })
 
-// ── Geolocation ────────────────────────────────────────────────────────────
+// ── Geolocation ───────────────────────────────────────────────────────────
 navigator.geolocation?.getCurrentPosition(p => {
   window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
 })
 
 window.addEventListener('collection-updated', render)
 render()
+checkClosedFromCache()
 </script>
 </body>
 </html>
