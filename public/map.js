@@ -1,9 +1,14 @@
-// Leaflet map — CartoDB Positron tiles, numbered circle pins
+// Leaflet map — CartoDB Positron tiles, numbered rounded-square pins
 
 let map, markersLayer, markerMap = {}
 
 export function initMap(containerId) {
-  map = L.map(containerId, { zoomControl: false })
+  map = L.map(containerId, {
+    zoomControl: false,
+    // Default view: LA area, zoomed out enough to see the full basin
+    center: [34.05, -118.25],
+    zoom: 10,
+  })
 
   // CartoDB Positron — clean white, modern, no API key
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -29,13 +34,15 @@ export function renderMarkers(businesses, onMarkerClick) {
 
     const num = biz._num ?? ''
     const isClosed = biz.closed_status === 'closed'
-    const size = num >= 100 ? 28 : 24
+    // Wider for 3-digit numbers
+    const w = num >= 100 ? 30 : 26
+    const h = 26
 
     const icon = L.divIcon({
       className: '',
-      html: `<div class="num-pin${isClosed ? ' closed' : ''}" data-id="${biz.id}" style="width:${size}px;height:${size}px;font-size:${num >= 100 ? '9' : '10'}px">${num}</div>`,
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2],
+      html: `<div class="num-pin${isClosed ? ' closed' : ''}" data-id="${biz.id}" style="width:${w}px;height:${h}px">${num}</div>`,
+      iconSize: [w, h],
+      iconAnchor: [w / 2, h / 2],
     })
 
     const marker = L.marker([lat, lng], { icon })
@@ -45,7 +52,8 @@ export function renderMarkers(businesses, onMarkerClick) {
     bounds.push([lat, lng])
   }
 
-  if (bounds.length) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 })
+  // Fit to markers but don't zoom in too far — keep LA-area context
+  if (bounds.length) map.fitBounds(bounds, { padding: [56, 56], maxZoom: 12 })
 }
 
 export function highlightMarker(id) {
@@ -57,5 +65,5 @@ export function highlightMarker(id) {
 }
 
 export function centerOnUser(lat, lng) {
-  map.setView([lat, lng], 14)
+  map.setView([lat, lng], 13)
 }

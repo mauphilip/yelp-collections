@@ -11,25 +11,26 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
-    /* Numbered circle pins — Infatuation style */
+    /* Numbered rounded-square pins */
     .num-pin {
-      border-radius: 50%;
+      border-radius: 6px;
       background: #0047FF;
       color: #fff;
-      font: 700 10px/1 'Inter', sans-serif;
+      font: 700 11px/1 'Inter', sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 2.5px solid #fff;
-      box-shadow: 0 1px 5px rgba(0,0,0,.28);
+      text-align: center;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 5px rgba(0,0,0,.3);
       cursor: pointer;
       transition: transform .15s, background .15s;
-      letter-spacing: -.01em;
+      letter-spacing: -.02em;
     }
-    .num-pin:hover { transform: scale(1.18); }
+    .num-pin:hover { transform: scale(1.12); }
     .num-pin.highlighted {
       background: #f59f00 !important;
-      transform: scale(1.35);
+      transform: scale(1.25);
       box-shadow: 0 2px 10px rgba(245,159,0,.5);
     }
     .num-pin.closed { background: #f03e3e; }
@@ -223,7 +224,7 @@ function refreshTagChips() {
 
 // ── Card rendering — numbered, no tags, only status badge ────────────────
 function renderCard(biz, index) {
-  const num = String(index + 1).padStart(2, '0')
+  const num = String(index + 1)
   const closed = biz.closed_status === 'closed'
   const imgSrc = getDisplayImage(biz)
   const img = imgSrc
