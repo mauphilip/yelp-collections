@@ -13,17 +13,37 @@
   --card-shadow: 0 1px 4px rgba(0,0,0,.10);
   --radius: 12px;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+}
+
+[data-theme="dark"] {
+  --blue: #60a5fa;
+  --blue-light: #1e3a5f;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --green: #34d399;
+  --gray: #9ca3af;
+  --gray-light: #1f2937;
+  --border: #374151;
+  --card-shadow: 0 1px 4px rgba(0,0,0,.4);
+  --bg: #111827;
+  --surface: #1f2937;
+  --text: #f9fafb;
+  --text-muted: #9ca3af;
 }
 
 html { font-size: 16px; }
-body { font-family: var(--font); background: var(--gray-light); color: #1f2937; min-height: 100dvh; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100dvh; transition: background .2s, color .2s; }
 
 a { color: var(--blue); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* ── Top Nav ──────────────────────────────────────────────────────────────── */
 .nav {
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: .75rem 1rem;
   display: flex;
@@ -43,6 +63,7 @@ a:hover { text-decoration: underline; }
   color: var(--gray);
   transition: background .15s;
 }
+.nav-link { color: var(--text-muted); }
 .nav-link:hover, .nav-link.active { background: var(--blue-light); color: var(--blue); }
 
 /* ── Rate limit indicator ─────────────────────────────────────────────────── */
@@ -103,7 +124,7 @@ a:hover { text-decoration: underline; }
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--surface);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
   padding: 1.25rem 1rem 2rem;
@@ -135,7 +156,8 @@ a:hover { text-decoration: underline; }
   border: 1.5px solid var(--border);
   font-size: .82rem;
   cursor: pointer;
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
   transition: all .15s;
   user-select: none;
 }
@@ -146,7 +168,8 @@ a:hover { text-decoration: underline; }
   border: 1.5px solid var(--border);
   border-radius: 8px;
   font-size: .85rem;
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
 }
 
 /* ── Card Grid ────────────────────────────────────────────────────────────── */
@@ -164,7 +187,7 @@ a:hover { text-decoration: underline; }
 @media (min-width: 1600px) { .cards { grid-template-columns: repeat(5, 1fr); } }
 
 .card {
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--card-shadow);
   overflow: hidden;
@@ -186,7 +209,7 @@ a:hover { text-decoration: underline; }
 
 .card-body { padding: .75rem; flex: 1; display: flex; flex-direction: column; gap: .35rem; }
 .card-name { font-weight: 700; font-size: 1rem; line-height: 1.2; }
-.card-name a { color: #1f2937; }
+.card-name a { color: var(--text); }
 .card-meta { font-size: .8rem; color: var(--gray); display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
 .stars { color: var(--yellow); }
 .price { color: var(--green); font-weight: 600; }
@@ -243,7 +266,8 @@ a:hover { text-decoration: underline; }
   font-size: .78rem;
   font-weight: 600;
   border: 1.5px solid var(--border);
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
   cursor: pointer;
   transition: all .15s;
 }
@@ -261,6 +285,8 @@ a:hover { text-decoration: underline; }
   font-family: var(--font);
   resize: none;
   min-height: 48px;
+  background: var(--surface);
+  color: var(--text);
 }
 .card-notes:focus { outline: none; border-color: var(--blue); }
 
@@ -297,7 +323,7 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: .4rem;
   padding: .5rem .75rem;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   align-items: center;
 }
@@ -305,7 +331,8 @@ a:hover { text-decoration: underline; }
   padding: .3rem .7rem;
   border-radius: 8px;
   border: 1.5px solid var(--border);
-  background: #fff;
+  background: var(--surface);
+  color: var(--text);
   font-size: .82rem;
   cursor: pointer;
   font-weight: 500;
@@ -467,8 +494,22 @@ a:hover { text-decoration: underline; }
   font-size: .75rem;
   color: var(--gray);
   border-top: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
 }
+
+/* ── Dark mode toggle ─────────────────────────────────────────────────────── */
+.dark-toggle {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: .3rem .65rem;
+  font-size: .85rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.dark-toggle:hover { border-color: var(--blue); color: var(--blue); }
 .yelp-attr a { color: var(--red); font-weight: 600; }
 
 /* ── Random picker modal ──────────────────────────────────────────────────── */
@@ -479,7 +520,7 @@ a:hover { text-decoration: underline; }
   z-index: 500;
 }
 .modal {
-  background: #fff;
+  background: var(--surface);
   border-radius: var(--radius);
   padding: 2rem;
   max-width: 340px;
@@ -492,6 +533,7 @@ a:hover { text-decoration: underline; }
 .modal-close {
   margin-top: 1.25rem;
   background: var(--gray-light);
+  color: var(--text);
   border: none;
   padding: .5rem 1.5rem;
   border-radius: 8px;

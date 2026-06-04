@@ -21,6 +21,7 @@
     <a href="index.html" class="nav-link active">Browse</a>
     <a href="discover.html" class="nav-link">Discover</a>
     <a href="admin.html" class="nav-link">Admin</a>
+    <button class="dark-toggle" id="dark-toggle">🌙 Dark</button>
   </div>
 </nav>
 
@@ -290,6 +291,23 @@ document.getElementById('btn-random').addEventListener('click', () => {
 })
 document.getElementById('modal-close').addEventListener('click', () => {
   document.getElementById('random-modal').style.display = 'none'
+})
+
+// ── Dark mode ──────────────────────────────────────────────────────────────
+const darkToggle = document.getElementById('dark-toggle')
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  darkToggle.textContent = dark ? '☀️ Light' : '🌙 Dark'
+}
+// Respect saved preference, then system preference
+const savedTheme = localStorage.getItem('yc_theme')
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+applyTheme(savedTheme ? savedTheme === 'dark' : prefersDark)
+
+darkToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  applyTheme(!isDark)
+  localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
 })
 
 // ── Geolocation ────────────────────────────────────────────────────────────
