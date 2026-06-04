@@ -118,6 +118,8 @@ export function saveBusiness(biz, tags = [], collectionName = '') {
     name: biz.name,
     url: biz.url,
     image_url: biz.image_url,
+    custom_image: '',  // user-set thumbnail override
+    website: biz.url ? biz.url : '',  // business website from Yelp (if available)
     rating: biz.rating,
     review_count: biz.review_count,
     price: biz.price || '',
@@ -249,4 +251,85 @@ export function starsHtml(rating) {
 
 export function categoryLabel(biz) {
   return (biz.categories || []).map(c => c.title).join(', ')
+}
+
+// Get display image (custom override or Yelp original)
+export function getDisplayImage(biz) {
+  return biz.custom_image || biz.image_url || ''
+}
+
+// ── Bulk Operations ──────────────────────────────────────────────────────────
+
+export function bulkSetStatus(ids, status) {
+  const list = loadCollection()
+  let changed = false
+  for (const b of list) {
+    if (ids.includes(b.id) && b.status !== status) {
+      b.status = status
+      changed = true
+    }
+  }
+  if (changed) saveCollection(list)
+}
+
+export function bulkAddTag(ids, tag) {
+  const list = loadCollection()
+  let changed = false
+  for (const b of list) {
+    if (ids.includes(b.id) && !b.tags.includes(tag)) {
+      b.tags.push(tag)
+      changed = true
+    }
+  }
+  if (changed) saveCollection(list)
+}
+
+export function bulkRemoveTag(ids, tag) {
+  const list = loadCollection()
+  let changed = false
+  for (const b of list) {
+    if (ids.includes(b.id) && b.tags.includes(tag)) {
+      b.tags = b.tags.filter(t => t !== tag)
+      changed = true
+    }
+  }
+  if (changed) saveCollection(list)
+}
+
+export function bulkRemove(ids) {
+  saveCollection(loadCollection().filter(b => !ids.includes(b.id)))
+}
+
+// ── Rich Notes Rendering ─────────────────────────────────────────────────────
+// Simple markdown-lite: lines starting with - or * become list items,
+// blank lines become paragraph breaks.
+
+export function renderNotes(text) {
+  if (!text) return ''
+  const lines = text.split('\n')
+  let html = ''
+  let inList = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const isListItem = /^[-*•]\s+/.test(trimmed)
+
+    if (isListItem) {
+      if (!inList) { html += '<ul>'; inList = true }
+      html += `<li>${escapeHtml(trimmed.replace(/^[-*•]\s+/, ''))}</li>`
+    } else {
+      if (inList) { html += '</ul>'; inList = false }
+      if (trimmed === '') {
+        html += ''
+      } else {
+        html += `<p>${escapeHtml(trimmed)}</p>`
+      }
+    }
+  }
+  if (inList) html += '</ul>'
+  return html
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
 }

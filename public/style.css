@@ -158,8 +158,10 @@ a:hover { text-decoration: underline; }
   padding-bottom: 5rem;
 }
 
-@media (min-width: 600px) { .cards { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 900px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 600px)  { .cards { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px)  { .cards { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1200px) { .cards { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1600px) { .cards { grid-template-columns: repeat(5, 1fr); } }
 
 .card {
   background: #fff;
@@ -357,6 +359,106 @@ a:hover { text-decoration: underline; }
 .progress-item { padding: .25rem 0; display: flex; align-items: center; gap: .4rem; }
 .progress-item.done { color: var(--green); }
 .progress-item.err { color: var(--red); }
+
+/* ── Multi-select mode ───────────────────────────────────────────────────── */
+.select-bar {
+  position: sticky;
+  top: 48px;
+  z-index: 99;
+  background: var(--blue);
+  color: #fff;
+  padding: .5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .85rem;
+  font-weight: 600;
+}
+.select-bar button {
+  background: #fff;
+  color: var(--blue);
+  border: none;
+  padding: .3rem .7rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.select-bar button.danger { color: var(--red); }
+.select-bar .select-spacer { flex: 1; }
+
+.card.selected { outline: 3px solid var(--blue); outline-offset: -3px; }
+.card-checkbox {
+  position: absolute;
+  top: .5rem;
+  right: .5rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid #fff;
+  background: rgba(0,0,0,.3);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: .75rem;
+}
+.card.selected .card-checkbox { background: var(--blue); border-color: var(--blue); }
+
+/* ── Rich notes (rendered) ───────────────────────────────────────────────── */
+.card-notes-rendered {
+  font-size: .82rem;
+  color: #374151;
+  padding: .4rem .6rem;
+  min-height: 24px;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+}
+.card-notes-rendered:hover { border-color: var(--border); }
+.card-notes-rendered ul, .card-notes-rendered ol {
+  margin: .2rem 0 .2rem 1.2rem;
+  font-size: .8rem;
+}
+.card-notes-rendered li { margin-bottom: .1rem; }
+.card-notes-rendered p { margin: .15rem 0; }
+.card-notes-rendered:empty::before {
+  content: 'Add a note…';
+  color: var(--gray);
+  font-style: italic;
+}
+
+/* ── Website link ────────────────────────────────────────────────────────── */
+.card-website {
+  font-size: .75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  color: var(--blue);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Thumbnail edit overlay ──────────────────────────────────────────────── */
+.card-img-wrap { position: relative; }
+.card-img-edit {
+  position: absolute;
+  bottom: .4rem;
+  right: .4rem;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: .2rem .45rem;
+  font-size: .7rem;
+  cursor: pointer;
+  display: none;
+}
+.card-img-wrap:hover .card-img-edit { display: block; }
 
 /* ── Attribution (Yelp ToS required) ─────────────────────────────────────── */
 .yelp-attr {
