@@ -330,10 +330,11 @@ export function isOpenNow(biz) {
   })
 }
 
-export function filterAndSort(list, { tags, price, minRating, status, sortBy, showClosed, openNow }) {
+export function filterAndSort(list, { tags, price, minRating, status, sortBy, showClosed, openNow, hasTags }) {
   let out = [...list]
   if (!showClosed) out = out.filter(b => b.closed_status !== 'closed')
   if (openNow)     out = out.filter(b => isOpenNow(b) === true)
+  if (hasTags)     out = out.filter(b => b.tags?.length > 0)
   if (tags && tags.length) out = out.filter(b => tags.every(t => b.tags.includes(t)))
   if (price && price.length) out = out.filter(b => price.includes(b.price))
   if (minRating) out = out.filter(b => b.rating >= minRating)

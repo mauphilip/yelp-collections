@@ -106,7 +106,6 @@
   </div>
   <div class="toolbar-right">
     <span class="toolbar-count" id="count-label"></span>
-    <button class="view-btn" id="btn-view-toggle">☰ List</button>
     <button class="view-btn" id="btn-map-toggle">Map</button>
   </div>
 </div>
@@ -167,6 +166,9 @@
       <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
         <input type="checkbox" id="open-now"> Open now
       </label>
+      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
+        <input type="checkbox" id="has-tags"> Has tag(s)
+      </label>
     </div>
 
   </div>
@@ -203,7 +205,6 @@ let filters = { tags: [], price: [], minRating: '', status: '', showClosed: fals
 let sortBy = 'saved'
 let query = ''
 let currentList = []
-let viewMode = localStorage.getItem('yc_view_index') || 'tile'
 let leafletMap = null
 let mapVisible = false
 let mapCollapsed = false
@@ -308,6 +309,7 @@ document.getElementById('sort-select').addEventListener('change', e => {
 })
 document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked; render() })
 document.getElementById('open-now').addEventListener('change', e => { filters.openNow = e.target.checked; render() })
+document.getElementById('has-tags').addEventListener('change', e => { filters.hasTags = e.target.checked; render() })
 
 const zipInput = document.getElementById('zip-input')
 const zipStatus = document.getElementById('zip-status')
@@ -330,33 +332,6 @@ function refreshTagChips() {
   document.getElementById('tag-chips').innerHTML = getAllTags().map(t =>
     `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
   ).join('')
-}
-
-// ── List row rendering ────────────────────────────────────────────────────
-function renderCardRow(biz, index) {
-  const tagMeta = getTagMeta()
-  const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
-    return `<span class="chip" style="font-size:.65rem;padding:.1rem .35rem;color:${color};border-color:${color}55;">${t}</span>`
-  }).join('')
-  const statusBadge = biz.status === 'been' ? '<span class="badge-been">Been</span>' : biz.status === 'want' ? '<span class="badge-want">Want</span>' : ''
-  const closedBadge = biz.closed_status === 'closed' ? '<span class="badge-closed">Closed</span>' : ''
-  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
-  return `<div class="card-row" data-id="${biz.id}">
-    <span class="card-row-num" style="color:var(--text-subtle);font-size:.75rem;min-width:1.5rem;">${index + 1}</span>
-    <span class="card-row-name"><a href="${biz.url}" target="_blank" rel="noopener" style="color:var(--text);font-weight:600;">${biz.name}</a></span>
-    <span class="card-row-cat" style="color:var(--text-muted);font-size:.78rem;">${categoryLabel(biz)}</span>
-    <span style="color:var(--text-muted);font-size:.78rem;">${biz.price || '—'}</span>
-    <span style="font-size:.78rem;">${biz.rating ? starsHtml(biz.rating).replace(/<[^>]+>/g,'') + ' ' + biz.rating : '—'}</span>
-    <span style="color:var(--text-muted);font-size:.78rem;">${biz.location?.city || ''}</span>
-    <span style="display:flex;gap:.3rem;flex-wrap:wrap;">${tags}</span>
-    <span style="display:flex;gap:.3rem;">${statusBadge}${closedBadge}</span>
-    <span style="display:flex;gap:.3rem;">
-      <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener" style="font-size:.7rem;padding:.15rem .4rem;">Yelp</a>
-      <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener" style="font-size:.7rem;padding:.15rem .4rem;">Dir</a>
-    </span>
-  </div>`
 }
 
 // ── Card rendering ────────────────────────────────────────────────────────
@@ -424,16 +399,8 @@ function render() {
 
   const cardsEl = document.getElementById('cards')
   const emptyEl = document.getElementById('empty-state')
-  const viewToggleBtn = document.getElementById('btn-view-toggle')
-  if (viewMode === 'list') {
-    cardsEl.className = 'cards-list'
-    viewToggleBtn.textContent = '⊞ Tiles'
-  } else {
-    cardsEl.className = 'cards'
-    viewToggleBtn.textContent = '☰ List'
-  }
   if (!currentList.length) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
-  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map((b, i) => viewMode === 'list' ? renderCardRow(b, i) : renderCard(b, i)).join('') }
+  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map((b, i) => renderCard(b, i)).join('') }
 
   if (mapVisible && leafletMap) {
     // Pass numbers (1-based index) along with businesses
@@ -477,12 +444,6 @@ function toggleCollapseMap() {
   mapToggleBtn.textContent = mapCollapsed ? '‹' : '›'
   if (!mapCollapsed) setTimeout(() => leafletMap?.invalidateSize(), 320)
 }
-
-document.getElementById('btn-view-toggle').addEventListener('click', () => {
-  viewMode = viewMode === 'tile' ? 'list' : 'tile'
-  localStorage.setItem('yc_view_index', viewMode)
-  render()
-})
 
 document.getElementById('btn-map-toggle').addEventListener('click', () => {
   if (mapVisible) closeMap(); else openMap()
