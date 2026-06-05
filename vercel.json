@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/yelp.js" }
+    { "source": "/api/yelp", "destination": "/api/yelp.js" }
   ],
   "headers": [
     {

@@ -1,6 +1,6 @@
-// Leaflet map — Esri World Topo tiles (terrain, free, no API key), white numbered pins
+// Leaflet map — CartoDB Positron tiles (clean, minimal, no API key needed)
 
-let map, markersLayer, markerMap = {}
+let map, markersLayer, markerMap = {}, userMarker = null
 
 export function initMap(containerId) {
   map = L.map(containerId, {
@@ -9,14 +9,44 @@ export function initMap(containerId) {
     zoom: 10,
   })
 
-  // Esri World Topo — terrain, green hills, highway shields, clean labels
-  // Free, no API key required
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles © <a href="https://www.esri.com/">Esri</a>',
+  // CartoDB Voyager — warm streets, green parks, clean labels. Closest free look to Google Maps.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(map)
 
   L.control.zoom({ position: 'bottomright' }).addTo(map)
+
+  // Near Me — uses L.DomEvent to avoid Leaflet swallowing the click
+  const NearMe = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const btn = L.DomUtil.create('button', 'near-me-btn')
+      btn.textContent = '📍 Near me'
+      L.DomEvent.disableClickPropagation(btn)
+      L.DomEvent.on(btn, 'click', () => {
+        if (!navigator.geolocation) { alert('Geolocation is not supported by your browser.'); return }
+        navigator.geolocation.getCurrentPosition(
+          p => {
+            window._userLat = p.coords.latitude
+            window._userLng = p.coords.longitude
+            showUserLocation(p.coords.latitude, p.coords.longitude)
+            map.setView([p.coords.latitude, p.coords.longitude], 13)
+          },
+          err => {
+            if (err.code === err.PERMISSION_DENIED)
+              alert('Location access was denied. Please allow it in your browser settings and try again.')
+            else
+              alert('Could not get your location. Try again.')
+          }
+        )
+      })
+      return btn
+    },
+  })
+  new NearMe().addTo(map)
+
   return map
 }
 
@@ -32,14 +62,14 @@ export function renderMarkers(businesses, onMarkerClick) {
 
     const num = biz._num ?? ''
     const isClosed = biz.closed_status === 'closed'
-    const w = num >= 100 ? 32 : 28
-    const h = 26
+    const fontSize = String(num).length >= 3 ? 9 : 11
+    const size = 26
 
     const icon = L.divIcon({
       className: '',
-      html: `<div class="num-pin${isClosed ? ' closed' : ''}" data-id="${biz.id}" style="width:${w}px;height:${h}px">${num}</div>`,
-      iconSize: [w, h],
-      iconAnchor: [w / 2, h / 2],
+      html: `<div class="num-pin${isClosed ? ' closed' : ''}" data-id="${biz.id}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${num}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
     })
 
     const marker = L.marker([lat, lng], { icon })
@@ -58,6 +88,17 @@ export function highlightMarker(id) {
     if (!el) continue
     el.querySelector('.num-pin')?.classList.toggle('highlighted', mid === id)
   }
+}
+
+export function showUserLocation(lat, lng) {
+  userMarker?.remove()
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="user-dot"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  })
+  userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(map)
 }
 
 export function centerOnUser(lat, lng) {

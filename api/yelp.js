@@ -8,7 +8,7 @@ const YELP_BASE = 'https://api.yelp.com/v3'
 // Allowed Yelp API paths this proxy will forward to
 const ALLOWED_PATHS = [
   /^\/businesses\/search$/,
-  /^\/businesses\/[A-Za-z0-9_-]+$/,
+  /^\/businesses\/[^\s/?#]+$/,  // allow Unicode aliases (e.g. shirubē-santa-monica)
 ]
 
 export default async function handler(req, res) {
