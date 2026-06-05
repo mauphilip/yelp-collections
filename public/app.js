@@ -143,6 +143,15 @@ export function setTagColor(tag, color) {
   }).catch(console.error)
 }
 
+export async function setTagListMeta(tag, patch) {
+  _tagMeta = { ..._tagMeta, [tag]: { ...(_tagMeta[tag] || {}), ...patch } }
+  await fetch('/api/collection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'setTagMeta', tagMeta: _tagMeta }),
+  })
+}
+
 export function removeTagMeta(tag) {
   const meta = { ..._tagMeta }
   delete meta[tag]

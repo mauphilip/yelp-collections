@@ -636,7 +636,7 @@ import {
   bulkSetStatus, bulkAddTag, bulkRemoveTag, bulkRemove,
   saveBusiness, saveStubBusiness,
   renameTagGlobal, deleteTagGlobal,
-  getTagMeta, setTagColor, removeTagMeta,
+  getTagMeta, setTagColor, removeTagMeta, setTagListMeta,
   getImports, saveImport, getImportQueue, setImportQueue,
   getRateInfo, checkYelpRateLimit, searchBusinesses,
   geocodeZip,
@@ -1953,28 +1953,36 @@ function renderTagsTab(filterStr = '') {
   const el = document.getElementById('tags-list')
   if (!tags.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.84rem;">No tags yet. Create one above.</p>'; return }
 
-  el.innerHTML = `
-    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-subtle);
-                display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;
-                padding:.35rem .75rem;margin-bottom:.2rem;">
-      <span></span><span>Tag</span><span style="text-align:right;">Places</span><span></span>
-    </div>
-    ${tags.map(tag => {
+  el.innerHTML = tags.map(tag => {
       const color = tagMeta[tag]?.color
       const count = counts[tag] || 0
-      return `<div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;
-                   padding:.5rem .75rem;border-radius:var(--radius-sm);background:var(--surface);
-                   border:1px solid var(--border);margin-bottom:.3rem;">
-        <span class="color-swatch tag-color-swatch" data-tag="${tag}"
-          style="background:${color||'var(--border)'};width:22px;height:22px;cursor:pointer;" title="Click to change color"></span>
-        <span style="font-weight:600;font-size:.875rem;">${tag}</span>
-        <span style="font-size:.8rem;color:var(--text-muted);font-weight:600;">${count}</span>
-        <div style="display:flex;gap:.3rem;">
-          <button class="btn-sm" data-rename-tag="${tag}">Rename</button>
-          <button class="btn-sm danger" data-delete-tag="${tag}">Delete</button>
+      const isList = !!tagMeta[tag]?.isList
+      const description = tagMeta[tag]?.description || ''
+      const shareUrl = `${location.origin}/share.html?tag=${encodeURIComponent(tag)}`
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:.3rem;">
+        <div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;padding:.5rem .75rem;">
+          <span class="color-swatch tag-color-swatch" data-tag="${tag}"
+            style="background:${color||'var(--border)'};width:22px;height:22px;cursor:pointer;" title="Click to change color"></span>
+          <span style="font-weight:600;font-size:.875rem;">${tag}</span>
+          <span style="font-size:.8rem;color:var(--text-muted);font-weight:600;">${count}</span>
+          <div style="display:flex;gap:.3rem;">
+            <button class="btn-sm${isList ? ' active' : ''}" data-list-toggle="${tag}" title="${isList ? 'Remove list' : 'Make list'}">📋 List</button>
+            <button class="btn-sm" data-rename-tag="${tag}">Rename</button>
+            <button class="btn-sm danger" data-delete-tag="${tag}">Delete</button>
+          </div>
         </div>
+        ${isList ? `<div style="padding:.5rem .75rem 1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem;">
+          <label style="font-size:.75rem;font-weight:600;color:var(--text-muted);">Description (optional)</label>
+          <textarea class="import-input" data-desc-tag="${tag}" rows="2"
+            style="margin:0;font-size:.82rem;" placeholder="e.g. Best date night spots in LA">${description}</textarea>
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+            <code style="font-size:.72rem;color:var(--text-muted);background:var(--bg);padding:.2rem .5rem;border-radius:4px;border:1px solid var(--border);">${shareUrl}</code>
+            <button class="btn-sm" data-copy-link="${shareUrl}">Copy link</button>
+            <a class="btn-sm" href="${shareUrl}" target="_blank" rel="noopener">Preview ↗</a>
+          </div>
+        </div>` : ''}
       </div>`
-    }).join('')}`
+    }).join('')
 
   // Inline color picker on swatch click
   el.querySelectorAll('.tag-color-swatch').forEach(sw => {
@@ -2019,6 +2027,30 @@ function renderTagsTab(filterStr = '') {
       const count = counts[tag] || 0
       if (!confirm(`Delete "${tag}"${count ? ` from all ${count} place${count!==1?'s':''}` : ''}?`)) return
       deleteTagGlobal(tag); render(); renderTagsTab(document.getElementById('tag-search').value)
+    })
+  })
+
+  el.querySelectorAll('[data-list-toggle]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tag = btn.dataset.listToggle
+      const wasList = !!getTagMeta()[tag]?.isList
+      await setTagListMeta(tag, { isList: !wasList })
+      renderTagsTab(document.getElementById('tag-search').value)
+    })
+  })
+
+  el.querySelectorAll('[data-desc-tag]').forEach(ta => {
+    ta.addEventListener('blur', async () => {
+      await setTagListMeta(ta.dataset.descTag, { description: ta.value.trim() })
+    })
+  })
+
+  el.querySelectorAll('[data-copy-link]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(btn.dataset.copyLink).then(() => {
+        const orig = btn.textContent; btn.textContent = 'Copied!'
+        setTimeout(() => btn.textContent = orig, 1500)
+      })
     })
   })
 }

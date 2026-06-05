@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Collections</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo" id="nav-title">Collections</span>
+  <div class="nav-menu-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">☰</button>
+    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+    </div>
+  </div>
+</nav>
+
+<div style="max-width:1400px;margin:0 auto;padding:1.5rem 1.25rem 0;">
+  <div id="list-header" style="display:none;margin-bottom:1.5rem;">
+    <h1 id="list-title" style="font-size:1.5rem;font-weight:800;letter-spacing:-.03em;margin:0 0 .35rem;"></h1>
+    <p id="list-description" style="font-size:.9rem;color:var(--text-muted);margin:0;"></p>
+  </div>
+  <div id="count-label" style="font-size:.78rem;color:var(--text-subtle);margin-bottom:.75rem;"></div>
+</div>
+
+<div style="max-width:1400px;margin:0 auto;">
+  <div class="cards" id="cards" style="padding:0 1.25rem 4rem;"></div>
+  <div id="empty-state" class="empty" style="display:none;">
+    <h2>No places found</h2>
+    <p>This list is empty or the tag doesn't exist.</p>
+  </div>
+</div>
+
+<footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
+
+<script type="module">
+// ── Dark mode ─────────────────────────────────────────────────────────────
+const darkToggle = document.getElementById('dark-toggle')
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
+}
+const savedTheme = localStorage.getItem('yc_theme')
+applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+darkToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  applyTheme(!isDark); localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+})
+const navMenuBtn = document.getElementById('nav-menu-btn')
+const navMenuDropdown = document.getElementById('nav-menu-dropdown')
+navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
+document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function starsHtml(r) {
+  const full = Math.floor(r), half = r % 1 >= 0.5
+  let s = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - (half ? 1 : 0))
+  return s
+}
+function categoryLabel(biz) {
+  return biz.categories?.[0]?.title || ''
+}
+
+// ── Render card (read-only) ───────────────────────────────────────────────
+function renderCard(biz, tagMeta, index) {
+  const closed = biz.closed_status === 'closed'
+  const imgSrc = biz.custom_image || biz.image_url || ''
+  const img = imgSrc
+    ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
+    : '<div class="card-img-placeholder"></div>'
+  const closedBadge = closed ? '<span class="closed-badge">Closed</span>' : ''
+  const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>' : ''
+  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
+  const tags = (biz.tags || []).map(t => {
+    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${t}</span>`
+  }).join('')
+  return `
+    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}">
+      <span class="card-num">${index + 1}</span>
+      ${closedBadge}
+      <div class="card-img-wrap">${img}</div>
+      <div class="card-body">
+        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
+        <div class="card-meta">
+          <span class="stars">${starsHtml(biz.rating)}</span>
+          <span>${biz.review_count}</span>
+          ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
+          <span class="cat">${categoryLabel(biz)}</span>
+        </div>
+        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''}</div>` : ''}
+        ${tags ? `<div class="card-tags" style="margin-top:.35rem;">${tags}</div>` : ''}
+        ${statusBadge ? `<div style="margin-top:.25rem;">${statusBadge}</div>` : ''}
+      </div>
+      <div class="card-actions">
+        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
+        <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
+      </div>
+    </div>`
+}
+
+// ── Load & render ─────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search)
+const tagParam = params.get('tag')
+
+const res = await fetch('/api/collection')
+const { businesses = [], tagMeta = {} } = await res.json()
+
+// Filter
+let list = businesses.filter(b => !b.not_found)
+if (tagParam) list = list.filter(b => (b.tags || []).includes(tagParam))
+list = list.filter(b => b.closed_status !== 'closed')
+list.sort((a, b) => b.rating - a.rating)
+
+// Title
+if (tagParam) {
+  document.title = `${tagParam} · Collections`
+  document.getElementById('nav-title').textContent = tagParam
+  const header = document.getElementById('list-header')
+  document.getElementById('list-title').textContent = tagParam
+  const desc = tagMeta[tagParam]?.description
+  if (desc) {
+    document.getElementById('list-description').textContent = desc
+    header.style.display = 'block'
+  } else {
+    header.style.display = 'block'
+    document.getElementById('list-description').style.display = 'none'
+  }
+}
+
+document.getElementById('count-label').textContent = `${list.length} place${list.length !== 1 ? 's' : ''}`
+
+const cardsEl = document.getElementById('cards')
+const emptyEl = document.getElementById('empty-state')
+if (!list.length) {
+  emptyEl.style.display = 'block'
+} else {
+  cardsEl.innerHTML = list.map((b, i) => renderCard(b, tagMeta, i)).join('')
+}
+</script>
+</body>
+</html>
