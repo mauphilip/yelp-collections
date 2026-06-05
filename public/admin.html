@@ -3,126 +3,627 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin · Yelp Collections+</title>
+  <title>Admin · Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
-    .map-pin { background: #0066cc; color: #fff; padding: .2rem .45rem; border-radius: 20px; font-size: .7rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,.3); cursor: pointer; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-    .map-pin.map-pin-closed { background: #d32f2f; }
-    .map-pin.map-pin-highlight { background: #f5a623; transform: scale(1.15); }
+    @keyframes gate-shake {
+      0%,100% { transform: translateX(0) }
+      20%,60% { transform: translateX(-8px) }
+      40%,80% { transform: translateX(8px) }
+    }
+    .gate-shake { animation: gate-shake .4s ease; }
+    /* ── Admin layout ── */
+    .admin-layout {
+      display: flex;
+      height: calc(100dvh - 52px);
+      overflow: hidden;
+    }
+    .admin-sidebar {
+      width: 168px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem 0 1rem;
+      gap: .15rem;
+    }
+    .admin-sidebar-title {
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      padding: 0 1.1rem .75rem;
+    }
+    .admin-tab-btn {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .55rem 1.1rem;
+      border: none;
+      background: transparent;
+      text-align: left;
+      width: 100%;
+      font-size: .82rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all .12s;
+    }
+    .admin-tab-btn:hover { color: var(--text); background: var(--gray-light); }
+    .admin-tab-btn.active { color: var(--blue); background: var(--blue-light); font-weight: 600; }
+    .admin-tab-icon { font-size: .9rem; }
+    .admin-main { flex: 1; overflow-y: auto; min-width: 0; position: relative; }
+    .admin-tab-panel { display: none; }
+    .admin-tab-panel.active { display: block; }
+
+    /* ── List tab toolbar ── */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .5rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      flex-wrap: wrap;
+    }
+    .list-toolbar .toolbar-count { margin-left: auto; }
+
+    /* Quick-remove × on each card */
+    .card-quick-remove {
+      position: absolute;
+      top: .45rem;
+      right: .45rem;
+      z-index: 10;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.55);
+      border: none;
+      color: #fff;
+      font-size: .8rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .15s, background .15s;
+      font-family: var(--font);
+      backdrop-filter: blur(4px);
+    }
+    .card:hover .card-quick-remove { opacity: 1; }
+    .card-quick-remove:hover { background: var(--red); }
+    /* Always visible in select mode */
+    .card.selected .card-quick-remove,
+    [data-select-mode="true"] .card-quick-remove { opacity: 1; }
+
+    /* ── Admin section (import/closed/diff content) ── */
+    .admin-section {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 1.75rem 1.5rem 4rem;
+    }
+    .admin-section h2 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .3rem; }
+    .admin-section .section-desc {
+      font-size: .82rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+      line-height: 1.55;
+    }
+    .api-notice {
+      background: #fff9db;
+      border: 1px solid #ffe066;
+      border-radius: var(--radius-sm);
+      padding: .55rem .85rem;
+      font-size: .8rem;
+      color: #5c3d00;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+    }
+    .free-notice {
+      background: #d3f9d8;
+      border: 1px solid #8ce99a;
+      border-radius: var(--radius-sm);
+      padding: .55rem .85rem;
+      font-size: .8rem;
+      color: #1a5c2a;
+      font-weight: 500;
+      margin-bottom: 1.25rem;
+    }
+    .stat-row {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .stat-pill {
+      padding: .35rem .85rem;
+      border-radius: 20px;
+      font-size: .8rem;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: var(--gray-light);
+      color: var(--text-muted);
+    }
+    .stat-pill.warn { background: #fff3cd; border-color: #ffe066; color: #856404; }
+    .stat-pill.danger { background: #ffe0e0; border-color: #ffa8a8; color: #c92a2a; }
+    .stat-pill.ok { background: #d3f9d8; border-color: #8ce99a; color: #1a5c2a; }
+
+    /* Closed results list */
+    .closed-results { margin-top: 1rem; }
+    .closed-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .6rem .75rem;
+      border-radius: var(--radius-sm);
+      background: var(--gray-light);
+      margin-bottom: .35rem;
+      font-size: .82rem;
+    }
+    .closed-row .biz-name { font-weight: 600; flex: 1; min-width: 0; }
+    .closed-row .biz-name a { color: var(--text); }
+    .closed-row .biz-name a:hover { color: var(--blue); }
+    .closed-row .biz-city { color: var(--text-subtle); font-size: .76rem; }
+    .progress-bar-wrap { background: var(--gray-light); border-radius: 8px; height: 8px; overflow: hidden; margin: .75rem 0; }
+    .progress-bar-fill { background: var(--blue); height: 100%; width: 0%; transition: width .3s; }
+
+    /* Import scroll snippet */
+    .snippet-box {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: .75rem;
+      border-radius: 8px;
+      font-size: .72rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      cursor: pointer;
+      position: relative;
+      margin-top: .5rem;
+      line-height: 1.5;
+    }
+    .snippet-copy-hint {
+      position: absolute;
+      top: .4rem;
+      right: .5rem;
+      font-size: .68rem;
+      color: #9ca3af;
+    }
   </style>
 </head>
 <body>
 
 <nav class="nav">
-  <span class="nav-logo">Yelp Collections+ <span style="font-size:.7rem;background:var(--yellow);color:#fff;padding:.1rem .4rem;border-radius:6px;vertical-align:middle;">ADMIN</span></span>
-  <div class="nav-links">
-    <a href="index.html" class="nav-link">Browse</a>
-    <a href="import.html" class="nav-link">Import</a>
-    <a href="discover.html" class="nav-link">Discover</a>
+  <span class="nav-logo">Collections <span style="font-size:.65rem;background:var(--yellow);color:#fff;padding:.1rem .4rem;border-radius:6px;vertical-align:middle;font-weight:700;">ADMIN</span></span>
+  <div class="nav-links" id="nav-links">
+    <a href="index.html" class="nav-link">My List</a>
     <a href="admin.html" class="nav-link active">Admin</a>
+  </div>
+  <div class="nav-menu-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">⋮</button>
+    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+    </div>
   </div>
 </nav>
 
-<div class="rate-bar" id="rate-bar"></div>
+<div class="admin-layout">
 
-<!-- Multi-select bar -->
-<div class="select-bar" id="select-bar" style="display:none;">
-  <span id="select-count">0 selected</span>
-  <span class="select-spacer"></span>
-  <button id="bulk-want">Mark: Want to Go</button>
-  <button id="bulk-been">Mark: Been There</button>
-  <button id="bulk-add-tag">+ Tag</button>
-  <button id="bulk-remove-tag">- Tag</button>
-  <button id="bulk-remove" class="danger">Remove</button>
-  <button id="select-cancel">Cancel</button>
-</div>
+  <!-- ── Left sidebar ── -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-title">Admin</div>
+    <button class="admin-tab-btn active" data-tab="list"><span class="admin-tab-icon">☰</span> List</button>
+    <button class="admin-tab-btn" data-tab="import"><span class="admin-tab-icon">⬇</span> Import</button>
+    <button class="admin-tab-btn" data-tab="closed"><span class="admin-tab-icon">🔍</span> Check Closed</button>
+    <button class="admin-tab-btn" data-tab="tags"><span class="admin-tab-icon">🏷</span> Tags</button>
+    <button class="admin-tab-btn" data-tab="connections"><span class="admin-tab-icon">🔌</span> Connections</button>
+    <div style="flex:1;"></div>
+    <button id="btn-lock-admin" class="admin-tab-btn" style="color:var(--text-subtle);font-size:.75rem;"><span class="admin-tab-icon">🔒</span> Lock</button>
+  </aside>
 
-<div id="closed-banner" class="banner banner-warn" style="display:none;">
-  <span id="closed-msg"></span>
-  <button class="banner-btn" id="btn-remove-closed">Remove all closed</button>
-</div>
+  <!-- ── Main content ── -->
+  <div class="admin-main" id="admin-main">
 
-<div id="check-banner" class="banner banner-info" style="display:none;">
-  <span id="check-msg">Checking business statuses…</span>
-</div>
+    <!-- ══ Tab: List ══ -->
+    <div id="tab-list" class="admin-tab-panel active">
+      <!-- Multi-select bar -->
+      <div class="select-bar" id="select-bar" style="display:none;">
+        <span id="select-count">0 selected</span>
+        <span class="select-spacer"></span>
+        <button id="bulk-want">Want to Go</button>
+        <button id="bulk-been">Been There</button>
+        <button id="bulk-add-tag">+ Tag</button>
+        <button id="bulk-remove-tag">− Tag</button>
+        <button id="bulk-remove" class="danger">Remove</button>
+        <button id="select-cancel">Cancel</button>
+      </div>
 
-<div class="view-toggle">
-  <button class="view-btn active" id="btn-list-view">List</button>
-  <button class="view-btn" id="btn-map-view">Map</button>
-  <button class="view-btn" id="btn-random">🎲 Random</button>
-  <button class="view-btn" id="btn-select-mode">☑ Select</button>
-  <span class="view-count" id="count-label"></span>
-</div>
+      <!-- Banners -->
+      <div id="not-found-banner" class="banner banner-alert" style="display:none;">
+        <span id="not-found-msg"></span>
+        <div style="margin-left:auto;display:flex;gap:.4rem;flex-shrink:0;">
+          <button class="banner-btn banner-btn-blue" id="btn-review-stubs">Review</button>
+          <button class="banner-btn" id="btn-remove-not-found">Remove all</button>
+        </div>
+      </div>
+      <div id="closed-banner" class="banner banner-alert" style="display:none;">
+        <span id="closed-msg"></span>
+        <div style="margin-left:auto;display:flex;gap:.4rem;flex-shrink:0;">
+          <button class="banner-btn banner-btn-blue" id="btn-review-closed">Review in Check Closed</button>
+          <button class="banner-btn" id="btn-remove-closed">Remove all</button>
+        </div>
+      </div>
 
-<div id="list-container">
-  <div class="cards" id="cards"></div>
-  <div class="empty" id="empty-state" style="display:none;">
-    <h2>No places saved yet</h2>
-    <p>Go to <a href="import.html">Import</a> to bring in your Yelp collections, or use <a href="discover.html">Discover</a> to find and save new places.</p>
-  </div>
-</div>
+      <!-- Stub review panel (shown inline when "Review →" clicked) -->
+      <div id="stub-review-panel" style="display:none;border-bottom:1px solid var(--border);background:var(--surface);padding:1rem 1.25rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+          <p style="font-weight:700;font-size:.88rem;">Not-found placeholders — check Yelp links manually</p>
+          <button id="btn-close-stub-review" class="btn-sm" style="font-size:.72rem;">Close ✕</button>
+        </div>
+        <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.75rem;">These were saved during import when the Yelp API returned 404. They may be closed, moved, or have a changed URL. Click to check each on Yelp before removing.</p>
+        <div id="stub-review-list"></div>
+      </div>
 
-<div id="map-container">
-  <div id="map"></div>
-  <div id="map-sidebar"></div>
-</div>
+      <!-- List toolbar -->
+      <div class="list-toolbar">
+        <button class="view-btn" id="btn-select-mode">☑ Select</button>
+        <button class="view-btn" id="btn-filter-toggle">⚙ Filters</button>
+        <button class="view-btn" id="btn-view-toggle" title="Toggle list/tile view">⊞ Tiles</button>
+        <div class="search-bar-wrap" style="max-width:300px;">
+          <div class="search-bar">
+            <svg class="search-icon" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
+            <input type="search" id="admin-search" placeholder="Search name, notes, tags…" autocomplete="off" style="font-size:.8rem;">
+          </div>
+        </div>
+        <span class="toolbar-count" id="count-label"></span>
+      </div>
 
-<button class="filter-toggle" id="filter-toggle-btn">⚙ Filters</button>
+      <!-- Filter drawer — inline collapsible panel -->
+      <div id="filter-drawer" style="display:none;padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface);">
+        <div class="filter-label">Status</div>
+        <div class="filter-row" id="status-chips">
+          <span class="chip active" data-val="">All</span>
+          <span class="chip" data-val="want">Want to Go</span>
+          <span class="chip" data-val="been">Been There</span>
+        </div>
+        <div class="filter-label" style="margin-top:.75rem;">Price</div>
+        <div class="filter-row" id="price-chips">
+          <span class="chip" data-val="$">$</span>
+          <span class="chip" data-val="$$">$$</span>
+          <span class="chip" data-val="$$$">$$$</span>
+          <span class="chip" data-val="$$$$">$$$$</span>
+        </div>
+        <div class="filter-label" style="margin-top:.75rem;">Min rating</div>
+        <div class="filter-row" id="rating-chips">
+          <span class="chip active" data-val="">Any</span>
+          <span class="chip" data-val="3">3+</span>
+          <span class="chip" data-val="4">4+</span>
+          <span class="chip" data-val="4.5">4.5+</span>
+        </div>
+        <div class="filter-label" style="margin-top:.75rem;">Tags</div>
+        <div class="filter-row" id="tag-chips"></div>
+        <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <div>
+            <div class="filter-label">Sort by</div>
+            <select class="sort-select" id="sort-select">
+              <option value="saved">Date saved</option>
+              <option value="rating">Rating</option>
+              <option value="name">Name</option>
+              <option value="distance">Distance</option>
+            </select>
+          </div>
+          <div id="zip-wrap" style="display:none;">
+            <div class="filter-label">or enter ZIP</div>
+            <input type="text" id="zip-input" placeholder="90210" maxlength="10" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-family:var(--font);background:var(--bg);color:var(--text);">
+            <span id="zip-status" style="font-size:.72rem;color:var(--text-subtle);margin-left:.3rem;"></span>
+          </div>
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;margin-top:1rem;">
+            <input type="checkbox" id="show-closed"> Show closed
+          </label>
+          <label style="font-size:.82rem;display:flex;align-items:center;gap:.4rem;margin-top:1rem;">
+            <input type="checkbox" id="open-now"> Open now
+          </label>
+        </div>
+        <button id="filter-apply-btn" class="btn-primary" style="margin-top:1rem;max-width:160px;">Apply</button>
+      </div>
 
-<div class="filter-drawer" id="filter-drawer">
-  <div class="drawer-handle"></div>
-  <div class="filter-label">Status</div>
-  <div class="filter-row" id="status-chips">
-    <span class="chip" data-val="">All</span>
-    <span class="chip" data-val="want">Want to Go</span>
-    <span class="chip" data-val="been">Been There</span>
-  </div>
-  <div class="filter-label" style="margin-top:.75rem;">Price</div>
-  <div class="filter-row" id="price-chips">
-    <span class="chip" data-val="$">$</span>
-    <span class="chip" data-val="$$">$$</span>
-    <span class="chip" data-val="$$$">$$$</span>
-    <span class="chip" data-val="$$$$">$$$$</span>
-  </div>
-  <div class="filter-label" style="margin-top:.75rem;">Min rating</div>
-  <div class="filter-row" id="rating-chips">
-    <span class="chip" data-val="">Any</span>
-    <span class="chip" data-val="3">3+</span>
-    <span class="chip" data-val="4">4+</span>
-    <span class="chip" data-val="4.5">4.5+</span>
-  </div>
-  <div class="filter-label" style="margin-top:.75rem;">Tags</div>
-  <div class="filter-row" id="tag-chips"></div>
-  <div style="margin-top:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
-    <div>
-      <div class="filter-label">Sort by</div>
-      <select class="sort-select" id="sort-select">
-        <option value="saved">Date saved</option>
-        <option value="rating">Rating</option>
-        <option value="name">Name</option>
-        <option value="distance">Distance</option>
-      </select>
+      <!-- Cards -->
+      <div class="cards" id="cards" style="padding:1.25rem;"></div>
+      <div class="empty" id="empty-state" style="display:none;">
+        <h2>No places saved yet</h2>
+        <p>Go to the Import tab to bring in your Yelp collections.</p>
+      </div>
     </div>
-    <label style="font-size:.85rem;display:flex;align-items:center;gap:.4rem;margin-top:1.1rem;">
-      <input type="checkbox" id="show-closed"> Show closed
-    </label>
-  </div>
-  <button id="filter-apply-btn" class="btn-primary" style="margin-top:1rem;">Apply</button>
-</div>
 
-<div class="modal-overlay" id="random-modal" style="display:none;">
-  <div class="modal">
-    <h2>🎲 Your pick:</h2>
-    <div class="picked-name" id="picked-name"></div>
-    <div class="picked-meta" id="picked-meta"></div>
-    <br>
-    <a id="picked-link" href="#" target="_blank" rel="noopener" class="btn-sm active">Open on Yelp</a>
-    <button class="modal-close" id="modal-close">Close</button>
+    <!-- ══ Tab: Import ══ -->
+    <div id="tab-import" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Import</h2>
+        <p class="section-desc">Two-phase workflow: check your list against what's already saved (no API), then execute the import with live progress and error details.</p>
+
+        <!-- PHASE 1: Input & Check -->
+        <div id="import-phase1">
+
+          <!-- Quick search import -->
+          <div style="margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--border);">
+            <p style="font-weight:700;font-size:.9rem;margin-bottom:.3rem;">Search & import</p>
+            <p class="section-desc" style="margin-bottom:.75rem;">Find a restaurant on Yelp and import it in one click.</p>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <input id="search-import-term" class="import-input" type="text" placeholder="Restaurant name…"
+                style="flex:2;min-width:160px;margin:0;">
+              <input id="search-import-location" class="import-input" type="text" placeholder="City or neighborhood…"
+                style="flex:1;min-width:140px;margin:0;">
+              <button id="btn-search-import" class="btn-primary" style="flex-shrink:0;max-width:100px;">Search</button>
+            </div>
+            <div id="search-import-results" style="margin-top:.75rem;"></div>
+          </div>
+
+          <!-- Bulk import from Yelp URLs -->
+          <details style="margin-bottom:1rem;">
+            <summary style="font-size:.82rem;font-weight:600;cursor:pointer;color:var(--text-muted);padding:.35rem 0;">Show browser console snippets</summary>
+            <div style="font-size:.82rem;margin-top:.75rem;">
+              <p style="margin-bottom:.35rem;font-weight:600;">Step 1 — Auto-scroll the Yelp page:</p>
+              <div class="snippet-box" id="scroll-snippet"><span class="snippet-copy-hint">click to copy</span><code>(async () => {
+  let prev = 0, unchanged = 0;
+  while (unchanged < 3) {
+    window.scrollTo(0, 9999999);
+    document.documentElement.scrollTop = 9999999;
+    document.body.scrollTop = 9999999;
+    await new Promise(r => setTimeout(r, 3000));
+    const curr = [...document.querySelectorAll('a[href*="/biz/"]')]
+      .map(a => a.href.split('?')[0])
+      .filter((v,i,a) => a.indexOf(v) === i).length;
+    if (curr === prev) unchanged++;
+    else { unchanged = 0; prev = curr; }
+    console.log('Loaded ' + curr + ' so far…');
+  }
+  alert('Done! ' + prev + ' found. Now run Step 2.');
+})();</code></div>
+              <p style="margin:.75rem 0 .35rem;font-weight:600;">Step 2 — Copy all URLs:</p>
+              <div class="snippet-box" id="copy-snippet"><span class="snippet-copy-hint">click to copy</span><code>const links = [...document.querySelectorAll('a[href*="/biz/"]')]
+  .map(a => { try { return decodeURIComponent(a.href.split('?')[0]) } catch { return a.href.split('?')[0] } })
+  .filter((v,i,a) => a.indexOf(v)===i)
+  .filter(u => /yelp\.com\/biz\/[^/?#\s]+/.test(u));
+copy(links.join('\n'));
+alert(links.length + ' URLs copied!');</code></div>
+            </div>
+          </details>
+
+          <label class="filter-label" style="display:block;margin-bottom:.4rem;">Import label (optional)</label>
+          <input id="import-label" class="import-input" type="text" placeholder="e.g., June 2026 favorites" style="margin-bottom:1rem;">
+
+          <label class="filter-label" style="display:block;margin-bottom:.4rem;">Business URLs — paste from clipboard</label>
+          <textarea id="import-urls" class="import-input" rows="8" placeholder="https://www.yelp.com/biz/some-restaurant&#10;…"></textarea>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <button id="btn-check-list" class="btn-primary" style="max-width:180px;">Check my list</button>
+            <span style="font-size:.78rem;color:var(--text-subtle);">No API calls — instant</span>
+          </div>
+
+          <!-- Resume banner -->
+          <div id="import-resume-box" style="display:none;background:var(--blue-light);border:1px solid var(--blue-subtle);border-radius:var(--radius-sm);padding:.75rem 1rem;margin-top:.75rem;font-size:.84rem;">
+            <p id="import-resume-info" style="margin-bottom:.5rem;font-weight:500;"></p>
+            <div style="display:flex;gap:.5rem;">
+              <button id="btn-import-resume" class="btn-primary" style="flex:1;">Resume import</button>
+              <button id="btn-import-clear" class="btn-sm">Discard</button>
+            </div>
+          </div>
+
+          <!-- Check results -->
+          <div id="import-check-results" style="display:none;margin-top:1.25rem;">
+            <div id="import-check-pills" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+
+            <!-- Editable table of what to import -->
+            <div id="import-table-section" style="display:none;">
+              <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;">
+                <p style="font-weight:700;font-size:.9rem;" id="import-table-title"></p>
+                <button id="btn-proceed-import" class="btn-primary" style="max-width:220px;"></button>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:.84rem;margin-bottom:1rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border);">
+                    <th style="width:36px;padding:.4rem .5rem;text-align:center;">
+                      <input type="checkbox" id="select-all-import" checked title="Select all">
+                    </th>
+                    <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Business</th>
+                    <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;width:140px;">Type</th>
+                    <th style="width:20px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="import-table-tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Already imported / duplicates (collapsible) -->
+            <div id="import-summary-details" style="font-size:.82rem;"></div>
+          </div>
+        </div>
+
+        <!-- PHASE 2: Progress & Report -->
+        <div id="import-phase2" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+            <span style="font-size:.82rem;font-weight:600;">Importing…</span>
+            <div style="display:flex;align-items:center;gap:.6rem;">
+              <span id="import-counter" style="font-size:.8rem;color:var(--text-muted);"></span>
+              <div style="display:flex;gap:.3rem;">
+                <button id="btn-pause-import" class="btn-sm" style="font-size:.72rem;padding:.22rem .55rem;">Pause</button>
+                <button id="btn-cancel-import" class="btn-sm danger" style="font-size:.72rem;padding:.22rem .55rem;">Cancel</button>
+              </div>
+            </div>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="import-bar"></div></div>
+          <div class="progress-list" id="import-log" style="max-height:200px;overflow-y:auto;margin-top:.5rem;"></div>
+
+          <!-- Report (appears after import completes) -->
+          <div id="import-report-box" style="display:none;margin-top:1.25rem;">
+            <div id="import-report-pills" style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+
+            <!-- Closed businesses review table -->
+            <div id="import-closed-section" style="display:none;margin-bottom:1.25rem;">
+              <p style="font-weight:700;font-size:.9rem;margin-bottom:.4rem;">⚠ Closed businesses — review before removing</p>
+              <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.75rem;">These were imported but flagged as permanently closed. Check the Yelp page before removing.</p>
+              <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;">
+                <button id="import-closed-remove-selected" class="btn-sm danger" style="display:none;">Remove selected</button>
+              </div>
+              <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                <thead>
+                  <tr style="border-bottom:2px solid var(--border);">
+                    <th style="width:36px;padding:.4rem .5rem;text-align:center;"><input type="checkbox" id="import-closed-select-all"></th>
+                    <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Business</th>
+                    <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Location</th>
+                    <th style="width:36px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="import-closed-tbody"></tbody>
+              </table>
+            </div>
+
+            <!-- Not found / errors -->
+            <div id="import-notfound-section" style="display:none;margin-bottom:1rem;"></div>
+
+            <button id="btn-go-to-list" class="btn-primary" style="max-width:180px;">View my list</button>
+          </div>
+        </div>
+
+        <!-- Import History -->
+        <div id="import-history-section" style="margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border);">
+          <h3 style="font-size:.95rem;font-weight:700;margin-bottom:1rem;">Import history</h3>
+          <div id="import-history-table"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Tab: Check Closed ══ -->
+    <div id="tab-closed" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Check for Closed Businesses</h2>
+        <div class="api-notice">⚠ Uses the Yelp API — 1 call per business that hasn't been checked within 7 days. Watch your daily quota.</div>
+        <div class="stat-row" id="closed-stats"></div>
+        <button id="btn-run-closed-check" class="btn-primary" style="max-width:200px;margin-bottom:1.25rem;">Run check</button>
+        <div id="closed-check-progress" style="display:none;">
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="closed-bar"></div></div>
+          <p id="closed-check-msg" style="font-size:.8rem;color:var(--text-muted);margin-top:.35rem;"></p>
+        </div>
+        <div id="closed-report" class="closed-results"></div>
+
+        <!-- Cache debug -->
+        <details style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);">
+          <summary style="font-size:.82rem;font-weight:600;cursor:pointer;color:var(--text-muted);user-select:none;">
+            🛠 Cache debug
+          </summary>
+          <div style="margin-top:.75rem;">
+            <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.75rem;">
+              Shows every business, what's stored in your collection vs. what the Yelp cache last returned, and how fresh the cache is. Mismatches may indicate a stale check or a bug.
+            </p>
+            <button id="btn-refresh-cache-debug" class="btn-sm" style="margin-bottom:.75rem;">↻ Refresh</button>
+            <div id="cache-debug-table"></div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ══ Tab: Tags ══ -->
+    <div id="tab-tags" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Tag Manager</h2>
+        <p class="section-desc">Create, color, rename, and delete tags. Tags created here are available to assign on any card — even before any business uses them.</p>
+
+        <!-- Create new tag -->
+        <div style="background:var(--gray-light);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1.25rem;">
+          <p style="font-weight:700;font-size:.88rem;margin-bottom:.6rem;">Create tag</p>
+          <input id="new-tag-name" class="import-input" style="margin-bottom:.6rem;" type="text" placeholder="Tag name…">
+          <p style="font-size:.75rem;font-weight:600;color:var(--text-muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em;">Color</p>
+          <div id="new-tag-picker" class="color-picker-wrap"></div>
+          <button id="btn-create-tag" class="btn-primary" style="margin-top:.75rem;max-width:160px;">Create tag</button>
+        </div>
+
+        <!-- Filter + list -->
+        <input id="tag-search" class="import-input" style="margin-bottom:.75rem;" type="search" placeholder="Filter tags…" autocomplete="off">
+        <div id="tags-list"></div>
+      </div>
+    </div>
+
+    <!-- ══ Tab: Connections ══ -->
+    <div id="tab-connections" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Connections</h2>
+        <p class="section-desc">Manage API credentials and monitor usage for connected services.</p>
+        <div class="connections-grid">
+
+          <!-- Yelp tile -->
+          <div class="connection-tile">
+            <div class="connection-tile-header">
+              <div class="connection-tile-logo">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#D32323"/><path d="M14 7.5c-.7 0-1.3.6-1.3 1.3v4.8l-3.8-2.8c-.6-.4-1.4-.3-1.8.3-.4.6-.2 1.4.4 1.8l4.5 3.1H7c-.7 0-1.3.6-1.3 1.3s.6 1.3 1.3 1.3h5.8l-4.5 3.1c-.6.4-.8 1.2-.4 1.8.4.6 1.2.7 1.8.3l3.8-2.8v4.8c0 .7.6 1.3 1.3 1.3s1.3-.6 1.3-1.3v-4.8l3.8 2.8c.6.4 1.4.3 1.8-.3.4-.6.2-1.4-.4-1.8L19.2 17H21c.7 0 1.3-.6 1.3-1.3s-.6-1.3-1.3-1.3h-5.8l4.5-3.1c.6-.4.8-1.2.4-1.8-.4-.6-1.2-.7-1.8-.3l-3.8 2.8V8.8c0-.7-.6-1.3-1.3-1.3z" fill="white"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div class="connection-tile-name">Yelp Fusion API</div>
+                <div class="connection-tile-status" id="yelp-conn-status">
+                  <span class="status-dot"></span><span id="yelp-conn-status-text">Not checked</span>
+                </div>
+              </div>
+              <a href="https://www.yelp.com/developers/v3/manage_app" target="_blank" rel="noopener"
+                 class="btn-sm" style="font-size:.72rem;">Manage →</a>
+            </div>
+
+            <div class="connection-tile-body">
+              <!-- API Key -->
+              <div class="conn-field">
+                <div class="conn-field-label">API Key</div>
+                <div class="conn-field-value" id="yelp-key-info" style="color:var(--text-muted);font-size:.82rem;">
+                  Stored in Vercel environment — never exposed to the browser.
+                </div>
+              </div>
+
+              <!-- Rate limit -->
+              <div class="conn-field">
+                <div class="conn-field-label">Daily quota</div>
+                <div id="yelp-quota-wrap">
+                  <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem;">
+                    <span id="yelp-quota-text" style="color:var(--text-muted);">—</span>
+                    <span id="yelp-reset-text" style="color:var(--text-subtle);"></span>
+                  </div>
+                  <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+                    <div id="yelp-quota-bar" style="background:var(--blue);height:100%;width:0%;transition:width .4s;"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Last checked -->
+              <div class="conn-field">
+                <div class="conn-field-label">Last updated</div>
+                <span id="yelp-last-updated" style="font-size:.8rem;color:var(--text-muted);">—</span>
+              </div>
+
+              <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+                <button id="btn-test-yelp" class="btn-primary" style="max-width:160px;">Test connection</button>
+                <button id="btn-refresh-yelp" class="btn-sm">↻ Refresh quota</button>
+              </div>
+              <p id="yelp-conn-error" style="display:none;font-size:.78rem;color:var(--red);margin-top:.5rem;"></p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /admin-main -->
+</div><!-- /admin-layout -->
+
+<!-- Admin password gate overlay -->
+<div id="admin-gate" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;max-width:320px;width:100%;display:flex;flex-direction:column;gap:1rem;box-shadow:var(--shadow-md);">
+    <div style="font-size:1.1rem;font-weight:700;">🔐 Admin Access</div>
+    <input id="gate-input" type="password" placeholder="Password" class="import-input" autofocus style="width:100%;box-sizing:border-box;margin:0;">
+    <button id="gate-submit" class="btn-primary" style="width:100%;">Enter</button>
+    <div id="gate-error" style="color:var(--red);font-size:.82rem;min-height:1rem;"></div>
   </div>
 </div>
 
@@ -130,57 +631,138 @@
 
 <script type="module">
 import {
-  loadCollection, removeBusiness, updateBusiness, addTag, removeTag,
-  getAllTags, filterAndSort, checkClosedBusinesses, pickRandom,
-  starsHtml, categoryLabel, rateLimitStatus, getDisplayImage, renderNotes,
-  bulkSetStatus, bulkAddTag, bulkRemoveTag, bulkRemove
+  initCollection, loadCollection, removeBusiness, updateBusiness, addTag, removeTag,
+  getAllTags, filterAndSort, checkClosedBusinesses, rateLimitStatus, getDisplayImage,
+  renderNotes, starsHtml, categoryLabel,
+  bulkSetStatus, bulkAddTag, bulkRemoveTag, bulkRemove,
+  saveBusiness, saveStubBusiness,
+  renameTagGlobal, deleteTagGlobal,
+  getTagMeta, setTagColor, removeTagMeta,
+  getImports, saveImport, getImportQueue, setImportQueue,
+  getRateInfo, checkYelpRateLimit, searchBusinesses,
+  geocodeZip,
 } from './app.js'
-import { initMap, renderMarkers, highlightMarker, centerOnUser } from './map.js'
+
+// ── Dark mode ─────────────────────────────────────────────────────────────
+const darkToggle = document.getElementById('dark-toggle')
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
+}
+const savedTheme = localStorage.getItem('yc_theme')
+applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+darkToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  applyTheme(!isDark)
+  localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+})
+const navMenuBtn = document.getElementById('nav-menu-btn')
+const navMenuDropdown = document.getElementById('nav-menu-dropdown')
+navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
+document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function activateTab(tab) {
+  document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
+  document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab))
+  if (tab === 'closed')       refreshClosedStats()
+  if (tab === 'tags')         renderTagsTab()
+  if (tab === 'connections')  initConnectionsTab()
+  location.hash = tab
+}
+
+document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => activateTab(btn.dataset.tab))
+})
+
+// Restore tab from URL hash on load
+const initialTab = location.hash.replace('#', '') || 'list'
+const validTabs = ['list', 'import', 'closed', 'tags']
+activateTab(validTabs.includes(initialTab) ? initialTab : 'list')
 
 // ── State ──────────────────────────────────────────────────────────────────
 let filters = { tags: [], price: [], minRating: '', status: '', showClosed: false }
 let sortBy = 'saved'
-let currentView = 'list'
+let query = ''
 let currentList = []
-let leafletMap = null
 let selectMode = false
 let selectedIds = new Set()
+let viewMode = localStorage.getItem('yc_view_admin') || 'tile'
 
-function updateRateBar() {
-  document.getElementById('rate-bar').textContent = 'API budget: ' + rateLimitStatus()
+function matchesQuery(biz, q) {
+  if (!q) return true
+  const lower = q.toLowerCase()
+  return [
+    biz.name, biz.alias,
+    ...(biz.categories || []).map(c => c.title),
+    biz.location?.city, biz.location?.state, biz.location?.address1,
+    biz.location?.neighborhood, biz.phone, biz.price,
+    ...(biz.tags || []),
+    biz.notes,
+    ...(biz.transactions || []),
+  ].filter(Boolean).some(f => String(f).toLowerCase().includes(lower))
 }
 
-// ── Filter drawer ──────────────────────────────────────────────────────────
-const drawer = document.getElementById('filter-drawer')
-document.getElementById('filter-toggle-btn').addEventListener('click', () => drawer.classList.toggle('open'))
-document.getElementById('filter-apply-btn').addEventListener('click', () => { drawer.classList.remove('open'); render() })
+function updateRateBar() { /* rate info moved to Connections tab */ }
 
-function setupChipGroup(containerId, multiSelect, onChange) {
-  const container = document.getElementById(containerId)
-  container.addEventListener('click', e => {
+document.getElementById('admin-search').addEventListener('input', e => { query = e.target.value; render() })
+
+// ── View mode toggle ───────────────────────────────────────────────────────
+document.getElementById('btn-view-toggle').addEventListener('click', () => {
+  viewMode = viewMode === 'tile' ? 'list' : 'tile'
+  localStorage.setItem('yc_view_admin', viewMode)
+  render()
+})
+
+// ── Filter drawer (toggle inline) ─────────────────────────────────────────
+const filterDrawer = document.getElementById('filter-drawer')
+document.getElementById('btn-filter-toggle').addEventListener('click', () => {
+  filterDrawer.style.display = filterDrawer.style.display === 'none' ? 'block' : 'none'
+})
+document.getElementById('filter-apply-btn').addEventListener('click', () => {
+  filterDrawer.style.display = 'none'; render()
+})
+
+function setupChipGroup(id, multi, cb) {
+  document.getElementById(id).addEventListener('click', e => {
     const chip = e.target.closest('.chip')
     if (!chip) return
-    if (multiSelect) { chip.classList.toggle('active') }
-    else { container.querySelectorAll('.chip').forEach(c => c.classList.remove('active')); chip.classList.add('active') }
-    onChange()
+    if (multi) chip.classList.toggle('active')
+    else { document.querySelectorAll(`#${id} .chip`).forEach(c => c.classList.remove('active')); chip.classList.add('active') }
+    cb()
   })
 }
-
 setupChipGroup('status-chips', false, () => { filters.status = document.querySelector('#status-chips .chip.active')?.dataset.val || '' })
-setupChipGroup('price-chips', true, () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
+setupChipGroup('price-chips',  true,  () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
 setupChipGroup('rating-chips', false, () => { filters.minRating = parseFloat(document.querySelector('#rating-chips .chip.active')?.dataset.val) || 0 })
-setupChipGroup('tag-chips', true, () => { filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val) })
-document.getElementById('sort-select').addEventListener('change', e => { sortBy = e.target.value })
+setupChipGroup('tag-chips',    true,  () => { filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val) })
+document.getElementById('sort-select').addEventListener('change', e => {
+  sortBy = e.target.value
+  document.getElementById('zip-wrap').style.display = sortBy === 'distance' ? 'block' : 'none'
+})
 document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked })
-document.querySelector('#status-chips .chip').classList.add('active')
-document.querySelector('#rating-chips .chip').classList.add('active')
+document.getElementById('open-now').addEventListener('change', e => { filters.openNow = e.target.checked })
+
+const zipInput = document.getElementById('zip-input')
+const zipStatus = document.getElementById('zip-status')
+async function applyZip() {
+  const zip = zipInput.value.trim()
+  if (!zip) return
+  zipStatus.textContent = '…'
+  try {
+    const { lat, lng } = await geocodeZip(zip)
+    window._userLat = lat; window._userLng = lng
+    zipStatus.textContent = '✓'
+    render()
+  } catch { zipStatus.textContent = '✗ not found' }
+}
+zipInput.addEventListener('blur', applyZip)
+zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyZip() })
 
 function refreshTagChips() {
-  const tags = getAllTags()
-  const container = document.getElementById('tag-chips')
-  const activeTags = new Set(filters.tags)
-  container.innerHTML = tags.map(t =>
-    `<span class="chip${activeTags.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
+  const active = new Set(filters.tags)
+  document.getElementById('tag-chips').innerHTML = getAllTags().map(t =>
+    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
   ).join('')
 }
 
@@ -188,87 +770,98 @@ function refreshTagChips() {
 const selectBar = document.getElementById('select-bar')
 
 document.getElementById('btn-select-mode').addEventListener('click', () => {
-  selectMode = !selectMode
-  selectedIds.clear()
+  selectMode = !selectMode; selectedIds.clear()
   document.getElementById('btn-select-mode').classList.toggle('active', selectMode)
   selectBar.style.display = selectMode ? 'flex' : 'none'
   render()
 })
-
 document.getElementById('select-cancel').addEventListener('click', () => {
   selectMode = false; selectedIds.clear()
   document.getElementById('btn-select-mode').classList.remove('active')
-  selectBar.style.display = 'none'
-  render()
+  selectBar.style.display = 'none'; render()
 })
+function updateSelectCount() { document.getElementById('select-count').textContent = `${selectedIds.size} selected` }
 
-function updateSelectCount() {
-  document.getElementById('select-count').textContent = `${selectedIds.size} selected`
+document.getElementById('bulk-want').addEventListener('click', () => { if (selectedIds.size) { bulkSetStatus([...selectedIds], 'want'); render(); updateSelectCount() } })
+document.getElementById('bulk-been').addEventListener('click', () => { if (selectedIds.size) { bulkSetStatus([...selectedIds], 'been'); render(); updateSelectCount() } })
+function openBulkTagPopover(anchorEl, mode) {
+  document.getElementById('bulk-tag-popover')?.remove()
+  const ids = [...selectedIds]
+  const tagMeta = getTagMeta()
+  const allTags = getAllTags()
+  const availTags = mode === 'remove'
+    ? allTags.filter(t => ids.some(id => loadCollection().find(b => b.id === id)?.tags?.includes(t)))
+    : allTags
+  const pop = document.createElement('div')
+  pop.id = 'bulk-tag-popover'
+  pop.className = 'tag-popover'
+  pop.innerHTML = `<input type="text" class="tag-popover-search" placeholder="Filter tags…">
+    <div class="tag-popover-list">${availTags.map(t => {
+      const c = tagMeta[t]?.color || 'var(--text-subtle)'
+      return `<div class="tag-popover-item" data-tag="${t}" style="--tag-c:${c}">${t}</div>`
+    }).join('')}</div>`
+  const rect = anchorEl.getBoundingClientRect()
+  pop.style.cssText = `position:fixed;top:${rect.bottom+4}px;left:${rect.left}px;z-index:500;`
+  document.body.appendChild(pop)
+  const search = pop.querySelector('.tag-popover-search')
+  const list = pop.querySelector('.tag-popover-list')
+  search.focus()
+  search.addEventListener('input', () => {
+    const q = search.value.toLowerCase()
+    list.querySelectorAll('.tag-popover-item').forEach(el => {
+      el.style.display = el.dataset.tag.toLowerCase().includes(q) ? '' : 'none'
+    })
+  })
+  list.addEventListener('click', e => {
+    const item = e.target.closest('.tag-popover-item')
+    if (!item) return
+    const tag = item.dataset.tag
+    if (mode === 'add') bulkAddTag(ids, tag); else bulkRemoveTag(ids, tag)
+    pop.remove(); render()
+  })
+  const close = e => { if (!pop.contains(e.target) && e.target !== anchorEl) { pop.remove(); document.removeEventListener('click', close) } }
+  setTimeout(() => document.addEventListener('click', close), 0)
 }
 
-document.getElementById('bulk-want').addEventListener('click', () => {
+document.getElementById('bulk-add-tag').addEventListener('click', e => {
   if (!selectedIds.size) return
-  bulkSetStatus([...selectedIds], 'want'); render(); updateSelectCount()
+  openBulkTagPopover(e.currentTarget, 'add')
 })
-document.getElementById('bulk-been').addEventListener('click', () => {
+document.getElementById('bulk-remove-tag').addEventListener('click', e => {
   if (!selectedIds.size) return
-  bulkSetStatus([...selectedIds], 'been'); render(); updateSelectCount()
-})
-document.getElementById('bulk-add-tag').addEventListener('click', () => {
-  if (!selectedIds.size) return
-  const tag = prompt('Tag to add to selected:')?.trim()
-  if (tag) { bulkAddTag([...selectedIds], tag); render() }
-})
-document.getElementById('bulk-remove-tag').addEventListener('click', () => {
-  if (!selectedIds.size) return
-  const tags = getAllTags()
-  const tag = prompt('Tag to remove from selected:\n\nAvailable: ' + tags.join(', '))?.trim()
-  if (tag) { bulkRemoveTag([...selectedIds], tag); render() }
+  openBulkTagPopover(e.currentTarget, 'remove')
 })
 document.getElementById('bulk-remove').addEventListener('click', () => {
   if (!selectedIds.size) return
-  if (confirm(`Remove ${selectedIds.size} place(s) from your collection?`)) {
-    bulkRemove([...selectedIds]); selectedIds.clear(); updateSelectCount(); render()
-  }
+  if (confirm(`Remove ${selectedIds.size} place(s)?`)) { bulkRemove([...selectedIds]); selectedIds.clear(); updateSelectCount(); render() }
 })
 
-// ── Admin card rendering ───────────────────────────────────────────────────
+// ── Card rendering ─────────────────────────────────────────────────────────
 function renderCard(biz) {
   const closedClass = biz.closed_status === 'closed' ? ' closed' : ''
   const selectedClass = selectedIds.has(biz.id) ? ' selected' : ''
-  const closedBadge = biz.closed_status === 'closed'
-    ? '<div class="closed-badge">Permanently Closed</div>'
+  const closedBadge = biz.not_found
+    ? '<div class="warn-badge">Not found on Yelp — delete?</div>'
+    : biz.closed_status === 'closed' ? '<div class="closed-badge">Permanently Closed</div>'
     : biz.closed_status === 'unknown' ? '<div class="warn-badge">Status unknown</div>' : ''
-
   const imgSrc = getDisplayImage(biz)
-  const img = imgSrc
-    ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
-    : '<div class="card-img-placeholder"></div>'
-
-  const checkbox = selectMode
-    ? `<div class="card-checkbox" data-select="${biz.id}">${selectedIds.has(biz.id) ? '✓' : ''}</div>`
-    : ''
-
-  const tags = biz.tags.map(t =>
-    `<span class="tag">${t}<span class="tag-remove" data-id="${biz.id}" data-tag="${t}">✕</span></span>`
-  ).join('')
-
+  const img = imgSrc ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">` : '<div class="card-img-placeholder"></div>'
+  const checkbox = selectMode ? `<div class="card-checkbox" data-select="${biz.id}">${selectedIds.has(biz.id) ? '✓' : ''}</div>` : ''
+  const tagMeta = getTagMeta()
+  const tags = (biz.tags || []).map(t => {
+    const color = tagMeta[t]?.color
+    const style = color ? `background:${color}22;color:${color};border-color:${color}55;` : ''
+    return `<span class="tag" style="${style}">${t}<span class="tag-remove" data-id="${biz.id}" data-tag="${t}">✕</span></span>`
+  }).join('')
   const wantActive = biz.status === 'want' ? ' active' : ''
   const beenActive = biz.status === 'been' ? ' active' : ''
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
-
-  let website = ''
-  if (biz.website) {
-    try { website = `<a class="card-website" href="${biz.website}" target="_blank" rel="noopener">🔗 ${new URL(biz.website).hostname.replace('www.','')}</a>` }
-    catch { website = `<a class="card-website" href="${biz.website}" target="_blank" rel="noopener">🔗 website</a>` }
-  }
-
+  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const notesHtml = renderNotes(biz.notes)
-
   return `
     <div class="card${closedClass}${selectedClass}" data-id="${biz.id}" id="card-${biz.id}">
-      ${closedBadge}
-      ${checkbox}
+      ${closedBadge}${checkbox}
+      <button class="card-quick-remove" data-remove="${biz.id}" title="Remove">✕</button>
       <div class="card-img-wrap">
         ${img}
         <button class="card-img-edit" data-edit-img="${biz.id}">📷 Change</button>
@@ -281,44 +874,70 @@ function renderCard(biz) {
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
           <span class="cat">${categoryLabel(biz)}</span>
         </div>
-        <div class="card-meta">${biz.location?.city || ''} ${website}</div>
-        <div class="card-tags">${tags}
-          <span class="chip" style="font-size:.7rem;padding:.15rem .4rem;" data-add-tag="${biz.id}">+ tag</span>
-        </div>
-        <div class="card-notes-rendered" data-edit-notes="${biz.id}" title="Click to edit">${notesHtml}</div>
-        <textarea class="card-notes" data-id="${biz.id}" rows="3" style="display:none;" placeholder="Notes… use - for bullet lists&#10;- item one&#10;- item two">${biz.notes || ''}</textarea>
+        <div class="card-meta">${biz.location?.city || ''}</div>
+        <div class="card-tags">${tags}<span class="chip" style="font-size:.7rem;padding:.15rem .4rem;" data-add-tag="${biz.id}">+ tag</span></div>
+        <div class="card-notes-rendered" data-edit-notes="${biz.id}" title="Click to edit notes">${notesHtml || '<span style="color:var(--text-subtle);font-size:.73rem;">Add notes…</span>'}</div>
+        <textarea class="card-notes" data-id="${biz.id}" rows="3" style="display:none;" placeholder="Notes… use - for bullet lists">${biz.notes || ''}</textarea>
       </div>
       <div class="card-actions">
         <button class="btn-sm${wantActive}" data-status-id="${biz.id}" data-status-val="want">Want to Go</button>
         <button class="btn-sm${beenActive}" data-status-id="${biz.id}" data-status-val="been">Been There</button>
-        <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
-        <button class="btn-sm danger" data-remove="${biz.id}">Remove</button>
       </div>
     </div>`
 }
 
-// ── Main render ────────────────────────────────────────────────────────────
-function render() {
-  const all = loadCollection()
-  currentList = filterAndSort(all, { ...filters, sortBy })
-  document.getElementById('count-label').textContent = `${currentList.length} place${currentList.length !== 1 ? 's' : ''}`
-  refreshTagChips()
-  updateRateBar()
-
-  const cardsEl = document.getElementById('cards')
-  const emptyEl = document.getElementById('empty-state')
-  if (currentList.length === 0) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
-  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map(renderCard).join('') }
-
-  if (currentView === 'map' && leafletMap) {
-    renderMarkers(currentList, id => { highlightMarker(id); renderMapSidebar(id) })
-    renderMapSidebarList()
-  }
+function renderCardRow(biz) {
+  const statusBadge = biz.status === 'been' ? '<span class="badge-been">Been</span>' : biz.status === 'want' ? '<span class="badge-want">Want</span>' : ''
+  const closedBadge = biz.closed_status === 'closed' ? '<span class="badge-closed">Closed</span>' : ''
+  const selectedClass = selectedIds.has(biz.id) ? ' selected' : ''
+  return `<div class="card-row${selectedClass}" data-id="${biz.id}">
+    <span class="card-row-name">${biz.name}</span>
+    <span class="card-row-cat" style="color:var(--text-muted);font-size:.78rem;">${categoryLabel(biz)}</span>
+    <span class="card-row-price" style="color:var(--text-muted);font-size:.78rem;">${biz.price || '—'}</span>
+    <span class="card-row-rating" style="font-size:.78rem;">${biz.rating ? starsHtml(biz.rating) : '—'}</span>
+    <span class="card-row-city" style="color:var(--text-muted);font-size:.78rem;">${biz.location?.city || ''}</span>
+    <span style="display:flex;gap:.3rem;">${statusBadge}${closedBadge}</span>
+    <span style="display:flex;gap:.3rem;">
+      <button class="btn-sm" data-status-id="${biz.id}" data-status-val="want" style="font-size:.7rem;padding:.15rem .4rem;">Want</button>
+      <button class="btn-sm" data-status-id="${biz.id}" data-status-val="been" style="font-size:.7rem;padding:.15rem .4rem;">Been</button>
+      <button class="btn-sm" data-remove="${biz.id}" style="font-size:.7rem;padding:.15rem .4rem;color:var(--red);">✕</button>
+    </span>
+  </div>`
 }
 
-// ── Card interaction delegation ────────────────────────────────────────────
+// ── Render ─────────────────────────────────────────────────────────────────
+function render() {
+  const all = loadCollection()
+  // Not-found banner
+  const nfCount = all.filter(b => b.not_found).length
+  document.getElementById('not-found-banner').style.display = nfCount ? 'flex' : 'none'
+  if (nfCount) document.getElementById('not-found-msg').textContent = `${nfCount} place${nfCount !== 1 ? 's' : ''} couldn't be found on Yelp during import.`
+  // Closed banner
+  const clCount = all.filter(b => b.closed_status === 'closed').length
+  document.getElementById('closed-banner').style.display = clCount ? 'flex' : 'none'
+  if (clCount) document.getElementById('closed-msg').textContent = `${clCount} place${clCount !== 1 ? 's' : ''} marked permanently closed.`
+
+  const searched = query ? all.filter(b => matchesQuery(b, query)) : all
+  currentList = filterAndSort(searched, { ...filters, sortBy })
+  document.getElementById('count-label').textContent = `${currentList.length} of ${all.length}`
+  refreshTagChips()
+  updateRateBar()
+  const cardsEl = document.getElementById('cards')
+  const emptyEl = document.getElementById('empty-state')
+  const viewToggleBtn = document.getElementById('btn-view-toggle')
+  if (viewMode === 'list') {
+    cardsEl.className = 'cards-list'
+    viewToggleBtn.textContent = '⊞ Tiles'
+  } else {
+    cardsEl.className = 'cards'
+    viewToggleBtn.textContent = '☰ List'
+  }
+  if (!currentList.length) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
+  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map(viewMode === 'list' ? renderCardRow : renderCard).join('') }
+}
+
+// ── Card interactions ──────────────────────────────────────────────────────
 document.getElementById('cards').addEventListener('click', e => {
-  // Multi-select
   if (selectMode) {
     const card = e.target.closest('.card')
     if (card && !e.target.closest('a') && !e.target.closest('.card-notes') && !e.target.closest('.card-notes-rendered')) {
@@ -327,176 +946,1186 @@ document.getElementById('cards').addEventListener('click', e => {
       updateSelectCount(); render(); return
     }
   }
-
-  // Edit thumbnail
   const editImgId = e.target.dataset.editImg
   if (editImgId) {
-    const url = prompt('Paste an image URL (or leave empty to reset to Yelp default):')
+    const url = prompt('Paste an image URL (or leave empty to reset):')
     if (url !== null) { updateBusiness(editImgId, { custom_image: url.trim() }); render() }
     return
   }
-
-  // Edit notes — show textarea
   const editNotesEl = e.target.closest('[data-edit-notes]')
   if (editNotesEl) {
-    const id = editNotesEl.dataset.editNotes
-    const card = document.getElementById('card-' + id)
+    const card = document.getElementById('card-' + editNotesEl.dataset.editNotes)
     if (!card) return
     card.querySelector('.card-notes-rendered').style.display = 'none'
-    const ta = card.querySelector('.card-notes')
-    ta.style.display = 'block'
-    ta.focus()
+    const ta = card.querySelector('.card-notes'); ta.style.display = 'block'; ta.focus()
     return
   }
-
-  const removeId = e.target.dataset.remove
-  if (removeId) { removeBusiness(removeId); render(); return }
-
-  const statusId = e.target.dataset.statusId
-  if (statusId) { updateBusiness(statusId, { status: e.target.dataset.statusVal }); render(); return }
-
-  const tagRemove = e.target.dataset.tag
-  if (tagRemove) { removeTag(e.target.dataset.id, tagRemove); render(); return }
-
+  const removeId = e.target.dataset.remove; if (removeId) { removeBusiness(removeId); render(); return }
+  const statusId = e.target.dataset.statusId; if (statusId) { updateBusiness(statusId, { status: e.target.dataset.statusVal }); render(); return }
+  const tagRemove = e.target.dataset.tag; if (tagRemove) { removeTag(e.target.dataset.id, tagRemove); render(); return }
   const addTagId = e.target.dataset.addTag
-  if (addTagId) {
-    const tag = prompt('New tag name:')?.trim()
-    if (tag) { addTag(addTagId, tag); render() }
-  }
+  if (addTagId) { openTagPopover(addTagId, e.target); return }
+})
+document.getElementById('cards').addEventListener('focusout', e => {
+  if (!e.target.classList.contains('card-notes')) return
+  const id = e.target.dataset.id; updateBusiness(id, { notes: e.target.value })
+  const card = document.getElementById('card-' + id)
+  if (card) { card.querySelector('.card-notes-rendered').innerHTML = renderNotes(e.target.value); card.querySelector('.card-notes-rendered').style.display = 'block'; e.target.style.display = 'none' }
 })
 
-// Notes: save on blur
-document.getElementById('cards').addEventListener('focusout', e => {
-  if (e.target.classList.contains('card-notes')) {
-    const id = e.target.dataset.id
-    updateBusiness(id, { notes: e.target.value })
-    const card = document.getElementById('card-' + id)
-    if (card) {
-      const rendered = card.querySelector('.card-notes-rendered')
-      rendered.innerHTML = renderNotes(e.target.value)
-      rendered.style.display = 'block'
-      e.target.style.display = 'none'
+document.getElementById('btn-remove-not-found').addEventListener('click', () => {
+  loadCollection().filter(b => b.not_found).forEach(b => removeBusiness(b.id))
+  document.getElementById('stub-review-panel').style.display = 'none'
+  render()
+})
+document.getElementById('btn-remove-closed').addEventListener('click', () => {
+  loadCollection().filter(b => b.closed_status === 'closed').forEach(b => removeBusiness(b.id)); render()
+})
+document.getElementById('btn-review-closed').addEventListener('click', () => {
+  activateTab('closed')
+})
+document.getElementById('btn-review-stubs').addEventListener('click', () => {
+  const panel = document.getElementById('stub-review-panel')
+  const stubs = loadCollection().filter(b => b.not_found)
+  if (!stubs.length) return
+  document.getElementById('stub-review-list').innerHTML = stubs.map(b => {
+    const date = b.saved_at ? new Date(b.saved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'unknown date'
+    const bizId = b.id || b.alias || ''
+    return `<div style="display:flex;align-items:center;gap:.75rem;padding:.45rem .6rem;border-radius:6px;background:var(--gray-light);margin-bottom:.3rem;">
+      <a href="https://www.yelp.com/biz/${bizId}" target="_blank" rel="noopener"
+         style="font-weight:600;font-size:.83rem;flex:1;color:var(--text);">${b.name || bizId}</a>
+      <span style="font-size:.73rem;color:var(--text-subtle);white-space:nowrap;">tried ${date}</span>
+      <button class="btn-sm danger" style="font-size:.72rem;padding:.2rem .45rem;" data-remove-stub="${b.id}">Remove</button>
+    </div>`
+  }).join('')
+  panel.querySelectorAll('[data-remove-stub]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      removeBusiness(btn.dataset.removeStub); render()
+      btn.closest('div[style]').remove()
+      if (!document.getElementById('stub-review-list').children.length)
+        panel.style.display = 'none'
+    })
+  })
+  panel.style.display = 'block'
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
+document.getElementById('btn-close-stub-review').addEventListener('click', () => {
+  document.getElementById('stub-review-panel').style.display = 'none'
+})
+
+// ══ Tab: Import ═══════════════════════════════════════════════════════════
+const QUEUE_KEY = 'yelp_import_queue'
+function loadQueue() { try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || null } catch { return null } }
+function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)) }
+function clearQueue() { localStorage.removeItem(QUEUE_KEY) }
+
+function extractBizId(input) {
+  input = input.trim()
+  try { input = decodeURIComponent(input) } catch {}
+  const m = input.match(/yelp\.com\/biz\/([^/?#\s]+)/)
+  if (m) return m[1].replace(/\/$/, '')
+  if (!/[\s/]/.test(input) && input.length > 0) return input
+  return null
+}
+
+function buildLookup() {
+  const lookup = {}
+  for (const b of loadCollection()) { lookup[b.id] = b; if (b.alias) lookup[b.alias] = b }
+  return lookup
+}
+
+// Snippet copy
+document.querySelectorAll('.snippet-box').forEach(box => {
+  box.addEventListener('click', () => {
+    navigator.clipboard.writeText(box.querySelector('code').textContent).then(() => {
+      const hint = box.querySelector('.snippet-copy-hint'); hint.textContent = 'copied!'
+      setTimeout(() => { hint.textContent = 'click to copy' }, 2000)
+    })
+  })
+})
+
+// ── Search & Import (quick single-business) ───────────────────────────────
+;(function() {
+  const termEl     = document.getElementById('search-import-term')
+  const locEl      = document.getElementById('search-import-location')
+  const btnSearch  = document.getElementById('btn-search-import')
+  const resultsEl  = document.getElementById('search-import-results')
+
+  async function runSearch() {
+    const term     = termEl.value.trim()
+    const location = locEl.value.trim()
+    if (!term) { termEl.focus(); return }
+    if (!location) { locEl.focus(); return }
+
+    btnSearch.textContent = 'Searching…'; btnSearch.disabled = true
+    resultsEl.innerHTML = ''
+
+    try {
+      const data = await searchBusinesses({ term, location, limit: 8 })
+      btnSearch.textContent = 'Search'; btnSearch.disabled = false
+
+      if (!data?.businesses?.length) {
+        resultsEl.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">No results — try a different name or location.</p>'
+        return
+      }
+
+      const lookup = buildLookup()
+      resultsEl.innerHTML = data.businesses.map(biz => {
+        const saved   = lookup[biz.id] || lookup[biz.alias]
+        const done    = saved && !saved.not_found
+        const retry   = saved?.not_found
+        const addr    = [biz.location?.address1, biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
+        const cats    = (biz.categories || []).map(c => c.title).join(', ')
+        const meta    = [cats, biz.price].filter(Boolean).join(' · ')
+        const stars   = biz.rating ? `★ ${biz.rating}` : ''
+        const reviews = biz.review_count ? `${biz.review_count.toLocaleString()} reviews` : ''
+        const subline = [meta, [stars, reviews].filter(Boolean).join(' · ')].filter(Boolean).join(' — ')
+
+        const badge = done
+          ? `<span style="font-size:.72rem;background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.18rem .45rem;font-weight:700;white-space:nowrap;flex-shrink:0;">✓ Saved</span>`
+          : `<button class="btn-sm${retry ? '' : ''}" data-qi="${biz.id}" style="white-space:nowrap;flex-shrink:0;">${retry ? 'Retry' : 'Import'}</button>`
+
+        return `<div class="search-import-row" data-id="${biz.id}">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${biz.name}</div>
+            <div style="font-size:.74rem;color:var(--text-muted);margin-top:.1rem;">${addr}</div>
+            ${subline ? `<div style="font-size:.72rem;color:var(--text-subtle);margin-top:.1rem;">${subline}</div>` : ''}
+          </div>
+          ${badge}
+        </div>`
+      }).join('')
+
+      resultsEl.querySelectorAll('[data-qi]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.qi
+          btn.textContent = '…'; btn.disabled = true
+          try {
+            const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+            if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || `HTTP ${res.status}`) }
+            const biz = await res.json()
+            saveBusiness(biz, [], '', Date.now().toString())
+            render()
+            if (biz.is_closed) {
+              btn.textContent = '⚠ Closed'
+              btn.style.cssText = 'background:#fff3cd;color:#856404;border-color:#ffe066;cursor:default;white-space:nowrap;flex-shrink:0;'
+            } else {
+              btn.outerHTML = `<span style="font-size:.72rem;background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.18rem .45rem;font-weight:700;white-space:nowrap;flex-shrink:0;">✓ Saved</span>`
+            }
+          } catch (err) {
+            btn.textContent = '✗ Failed'; btn.disabled = false; btn.title = err.message
+            btn.style.cssText = 'background:#ffe0e0;color:#c92a2a;white-space:nowrap;flex-shrink:0;'
+          }
+        })
+      })
+    } catch (err) {
+      btnSearch.textContent = 'Search'; btnSearch.disabled = false
+      resultsEl.innerHTML = `<p style="font-size:.82rem;color:var(--red);">Error: ${err.message}</p>`
     }
   }
-})
 
-document.getElementById('cards').addEventListener('mouseover', e => {
-  const card = e.target.closest('.card')
-  if (card && leafletMap) highlightMarker(card.dataset.id)
-})
+  btnSearch.addEventListener('click', runSearch)
+  ;[termEl, locEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch() }))
+})()
 
-// ── View toggle ────────────────────────────────────────────────────────────
-document.getElementById('btn-list-view').addEventListener('click', () => {
-  currentView = 'list'
-  document.getElementById('list-container').style.display = 'block'
-  document.getElementById('map-container').classList.remove('visible')
-  document.getElementById('btn-list-view').classList.add('active')
-  document.getElementById('btn-map-view').classList.remove('active')
-})
-
-document.getElementById('btn-map-view').addEventListener('click', () => {
-  currentView = 'map'
-  document.getElementById('list-container').style.display = 'none'
-  document.getElementById('map-container').classList.add('visible')
-  document.getElementById('btn-map-view').classList.add('active')
-  document.getElementById('btn-list-view').classList.remove('active')
-  if (!leafletMap) {
-    leafletMap = initMap('map')
-    const NearMe = L.Control.extend({
-      onAdd() {
-        const btn = L.DomUtil.create('button', 'btn-sm active')
-        btn.textContent = '📍 Near me'
-        btn.style.margin = '8px'
-        btn.onclick = () => {
-          navigator.geolocation.getCurrentPosition(p => {
-            window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
-            centerOnUser(p.coords.latitude, p.coords.longitude)
-          })
-        }
-        return btn
-      }
-    })
-    new NearMe({ position: 'topright' }).addTo(leafletMap)
+// ── Phase 1: Check (no API) ────────────────────────────────────────────────
+function checkPausedQueue() {
+  const q = loadQueue()
+  const box = document.getElementById('import-resume-box')
+  if (q && q.remaining && q.remaining.length > 0) {
+    box.style.display = 'block'
+    const done = q.total - q.remaining.length
+    document.getElementById('import-resume-info').textContent =
+      `"${q.label || 'Untitled import'}" — ${done} of ${q.total} done, ${q.remaining.length} remaining.`
+  } else {
+    box.style.display = 'none'
   }
-  renderMarkers(currentList, id => { highlightMarker(id); renderMapSidebar(id) })
-  renderMapSidebarList()
-})
-
-function renderMapSidebarList() {
-  const sidebar = document.getElementById('map-sidebar')
-  sidebar.innerHTML = currentList.map(b => `
-    <div class="map-item" data-id="${b.id}">
-      <div class="map-item-name">${b.name}</div>
-      <div class="map-item-meta">${b.price || ''} · ${categoryLabel(b)}</div>
-    </div>`).join('')
-  sidebar.querySelectorAll('.map-item').forEach(el => {
-    el.addEventListener('click', () => { highlightMarker(el.dataset.id); renderMapSidebar(el.dataset.id) })
-  })
-}
-function renderMapSidebar(activeId) {
-  document.querySelectorAll('.map-item').forEach(el => el.classList.toggle('highlight', el.dataset.id === activeId))
 }
 
-// ── Random picker ──────────────────────────────────────────────────────────
-document.getElementById('btn-random').addEventListener('click', () => {
-  const pick = pickRandom(currentList.filter(b => b.closed_status !== 'closed'))
-  if (!pick) { alert('No open places in your current list!'); return }
-  document.getElementById('picked-name').textContent = pick.name
-  document.getElementById('picked-meta').textContent =
-    [pick.price, categoryLabel(pick), pick.location?.city].filter(Boolean).join(' · ')
-  document.getElementById('picked-link').href = pick.url
-  document.getElementById('random-modal').style.display = 'flex'
+document.getElementById('btn-import-clear').addEventListener('click', () => {
+  clearQueue(); checkPausedQueue()
 })
-document.getElementById('modal-close').addEventListener('click', () => {
-  document.getElementById('random-modal').style.display = 'none'
+document.getElementById('btn-import-resume').addEventListener('click', () => {
+  const q = loadQueue(); if (!q) return
+  document.getElementById('import-resume-box').style.display = 'none'
+  startPhase2(q.remaining, q.total, q.total - q.remaining.length, q.label || 'Untitled import', q.importId || Date.now().toString())
 })
 
-// ── Closed business detection ──────────────────────────────────────────────
-const checkBanner = document.getElementById('check-banner')
-const checkMsg = document.getElementById('check-msg')
-const closedBanner = document.getElementById('closed-banner')
-const closedMsg = document.getElementById('closed-msg')
+document.getElementById('btn-check-list').addEventListener('click', () => {
+  const raw = document.getElementById('import-urls').value.trim()
+  if (!raw) { alert('Paste your Yelp URLs first.'); return }
 
-function runClosedCheck() {
-  const all = loadCollection()
-  const needCheck = all.filter(b => {
-    try {
-      const raw = localStorage.getItem('yc_biz_' + b.id)
-      if (!raw) return true
-      const { ts, ttl } = JSON.parse(raw)
-      return Date.now() - ts > ttl
-    } catch { return true }
-  })
-  if (!needCheck.length) {
-    const closed = all.filter(b => b.closed_status === 'closed')
-    if (closed.length) showClosedBanner(closed)
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
+  const seen = new Set(), entries = []
+  for (const line of lines) {
+    const id = extractBizId(line)
+    if (!id || seen.has(id)) continue
+    seen.add(id); entries.push({ id, url: line })
+  }
+  if (!entries.length) { alert('No valid Yelp URLs found.'); return }
+
+  const lookup = buildLookup()
+  const present = [], stubbed = [], missing = []
+  for (const e of entries) {
+    const biz = lookup[e.id]
+    if (!biz)               missing.push(e)
+    else if (biz.not_found) stubbed.push({ ...e, name: biz.name })
+    else                    present.push({ ...e, name: biz.name })
+  }
+
+  document.getElementById('import-check-pills').innerHTML = [
+    present.length ? `<span style="background:#d3f9d8;color:#2f9e44;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">✓ ${present.length} already imported</span>` : '',
+    missing.length ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">✗ ${missing.length} new</span>` : '',
+    stubbed.length ? `<span style="background:#fff3cd;color:#856404;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">⚠ ${stubbed.length} to retry</span>` : '',
+  ].filter(Boolean).join('')
+
+  const toImport = [...missing.map(e => ({ ...e, retry: false })), ...stubbed.map(e => ({ ...e, retry: true }))]
+  const tableSection = document.getElementById('import-table-section')
+
+  if (toImport.length) {
+    tableSection.style.display = 'block'
+    const parts = []
+    if (missing.length) parts.push(`${missing.length} new`)
+    if (stubbed.length) parts.push(`${stubbed.length} retry`)
+    document.getElementById('import-table-title').textContent = `${toImport.length} to import (${parts.join(', ')}) — uncheck or remove rows to skip`
+    document.getElementById('import-table-tbody').innerHTML = toImport.map(e => `
+      <tr data-id="${e.id}" style="border-bottom:1px solid var(--border-subtle);">
+        <td style="padding:.4rem .5rem;text-align:center;"><input type="checkbox" class="import-row-check" data-id="${e.id}" checked></td>
+        <td style="padding:.4rem .75rem;">
+          <a href="https://www.yelp.com/biz/${e.id}" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);">${e.id}</a>
+        </td>
+        <td style="padding:.4rem .75rem;font-size:.78rem;color:var(--text-muted);">
+          ${e.retry
+            ? '<span style="background:#fff3cd;color:#856404;border-radius:4px;padding:.1rem .4rem;font-weight:600;">retry</span>'
+            : '<span style="background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.1rem .4rem;font-weight:600;">new</span>'}
+        </td>
+        <td style="padding:.4rem .4rem;text-align:center;">
+          <button class="import-row-remove" data-id="${e.id}" title="Remove from this import"
+            style="background:none;border:none;cursor:pointer;color:var(--text-subtle);font-size:.9rem;padding:.1rem .3rem;border-radius:4px;line-height:1;">✕</button>
+        </td>
+      </tr>`).join('')
+
+    const selectAll = document.getElementById('select-all-import')
+    selectAll.checked = true
+    selectAll.onchange = () => { document.querySelectorAll('.import-row-check').forEach(cb => cb.checked = selectAll.checked); updateProceedBtn() }
+    document.querySelectorAll('.import-row-check').forEach(cb => cb.addEventListener('change', updateProceedBtn))
+    document.querySelectorAll('.import-row-remove').forEach(btn => {
+      btn.addEventListener('click', () => { btn.closest('tr').remove(); updateProceedBtn() })
+      btn.addEventListener('mouseover', () => { btn.style.color = 'var(--red)' })
+      btn.addEventListener('mouseout',  () => { btn.style.color = 'var(--text-subtle)' })
+    })
+    updateProceedBtn()
+  } else {
+    tableSection.style.display = 'none'
+    document.getElementById('btn-proceed-import').style.display = 'none'
+  }
+
+  // Collapsible — already imported
+  let detailsHtml = ''
+  if (present.length) detailsHtml += `
+    <details style="margin-bottom:.5rem;">
+      <summary style="font-size:.82rem;font-weight:600;cursor:pointer;color:var(--text-muted);">Already imported (${present.length})</summary>
+      <div style="margin-top:.5rem;display:flex;flex-direction:column;gap:.2rem;">
+        ${present.map(e => `<span style="font-size:.8rem;padding:.2rem .5rem;background:var(--gray-light);border-radius:4px;">${e.name || e.id}</span>`).join('')}
+      </div>
+    </details>`
+  document.getElementById('import-summary-details').innerHTML = detailsHtml
+
+  document.getElementById('import-check-results').style.display = 'block'
+  document.getElementById('import-phase2').style.display = 'none'
+})
+
+function updateProceedBtn() {
+  const checked = document.querySelectorAll('.import-row-check:checked')
+  const btn = document.getElementById('btn-proceed-import')
+  if (checked.length) {
+    btn.style.display = 'inline-block'
+    btn.textContent = `Proceed with import (${checked.length})`
+    btn.disabled = false
+  } else {
+    btn.style.display = 'none'
+  }
+}
+
+document.getElementById('btn-proceed-import').addEventListener('click', () => {
+  const ids = [...document.querySelectorAll('.import-row-check:checked')].map(cb => cb.dataset.id)
+  if (!ids.length) return
+  const label = document.getElementById('import-label').value.trim() ||
+    `Import ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  const importId = Date.now().toString()
+  saveQueue({ remaining: ids, label, total: ids.length, importId })
+  startPhase2(ids, ids.length, 0, label, importId)
+})
+
+document.getElementById('btn-go-to-list').addEventListener('click', () => {
+  document.querySelector('[data-tab="list"]').click()
+})
+
+// ── Phase 2: Execute import (API calls) ────────────────────────────────────
+let importPaused = false, importCancelled = false
+
+function startPhase2(ids, total, alreadyDone, label, importId) {
+  document.getElementById('import-phase1').style.display = 'none'
+  document.getElementById('import-phase2').style.display = 'block'
+  document.getElementById('import-report-box').style.display = 'none'
+  document.getElementById('import-log').innerHTML = ''
+  document.getElementById('import-bar').style.width = '0%'
+  const pauseBtn = document.getElementById('btn-pause-import')
+  const cancelBtn = document.getElementById('btn-cancel-import')
+  pauseBtn.textContent = 'Pause'; pauseBtn.disabled = false; pauseBtn.style.display = 'inline-block'
+  cancelBtn.textContent = 'Cancel'; cancelBtn.disabled = false; cancelBtn.style.display = 'inline-block'
+  runImport(ids, total, alreadyDone, label, importId)
+}
+
+document.getElementById('btn-pause-import').addEventListener('click', () => {
+  importPaused = true
+  document.getElementById('btn-pause-import').textContent = 'Pausing…'
+  document.getElementById('btn-pause-import').disabled = true
+})
+document.getElementById('btn-cancel-import').addEventListener('click', () => {
+  importCancelled = true
+  document.getElementById('btn-cancel-import').textContent = 'Cancelling…'
+  document.getElementById('btn-cancel-import').disabled = true
+})
+
+function failureReason(status, message) {
+  if (status === 404) return 'Not found on Yelp — may be closed, merged, or URL changed'
+  if (status === 401) return 'API key error — check Vercel environment variables'
+  if (status === 429) return 'Rate limited — daily quota reached, try again tomorrow'
+  if (status === 502 || status === 503) return 'Yelp API unavailable — try again later'
+  if (/network|fetch|failed to fetch/i.test(message)) return 'Network error — check your connection'
+  return message || `HTTP ${status}`
+}
+
+async function runImport(ids, total, alreadyDone, label, importId) {
+  importPaused = false; importCancelled = false
+  let imported = alreadyDone
+  const successList = [], closedList = [], notFoundList = [], failedList = []
+  const remaining = [...ids]
+  addImportLog(`Starting "${label}" — ${remaining.length} businesses`)
+
+  for (let i = 0; i < remaining.length; i++) {
+    // Pause: save queue and return to Phase 1 with resume banner
+    if (importPaused) {
+      const leftover = remaining.slice(i)
+      saveQueue({ remaining: leftover, label, total, importId })
+      addImportLog(`Paused — ${leftover.length} remaining.`, 'warn')
+      document.getElementById('import-phase1').style.display = 'block'
+      document.getElementById('import-phase2').style.display = 'none'
+      checkPausedQueue()
+      return
+    }
+    // Cancel: clear queue, finish up with partial report
+    if (importCancelled) {
+      clearQueue()
+      addImportLog(`Cancelled — ${remaining.length - i} not imported.`, 'warn')
+      break
+    }
+
+    const id = remaining[i]
+    addImportLog(`Fetching ${id}… (${imported + 1}/${total})`)
+
+    let lastStatus = 0
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+        lastStatus = res.status
+        if (res.status === 429) {
+          const body = await res.json().catch(() => ({}))
+          const wait = parseInt(body.retryAfter || '60', 10)
+          addImportLog(`Rate limited — waiting ${wait}s…`, 'warn')
+          saveQueue({ remaining: remaining.slice(i), label, total, importId })
+          await importCountdown(wait); continue
+        }
+        if (res.status === 404) {
+          saveStubBusiness(id, '')
+          notFoundList.push({ id, reason: failureReason(404) })
+          addImportLog(`Not found: ${id}`, 'warn'); break
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || `HTTP ${res.status}`)
+        }
+        const biz = await res.json()
+        saveBusiness(biz, [], '', importId)
+        if (biz.is_closed) {
+          closedList.push(biz)
+          addImportLog(`${biz.name} — permanently closed`, 'warn')
+        } else {
+          successList.push(biz)
+          addImportLog(biz.name, 'done')
+        }
+        imported++; break
+      } catch (err) {
+        if (attempt === 4) {
+          saveStubBusiness(id, '')
+          const reason = failureReason(lastStatus, err.message)
+          failedList.push({ id, reason })
+          addImportLog(`Failed: ${id} — ${reason}`, 'err')
+        } else {
+          addImportLog(`Retrying in ${(attempt + 1) * 3}s… (${err.message})`, 'warn')
+          await new Promise(r => setTimeout(r, (attempt + 1) * 3000))
+        }
+      }
+    }
+    updateImportProgress(imported, total)
+    if (!importCancelled && !importPaused) saveQueue({ remaining: remaining.slice(i + 1), label, total, importId })
+    if (i < remaining.length - 1 && !importCancelled && !importPaused) await new Promise(r => setTimeout(r, 500))
+  }
+
+  if (!importPaused) {
+    clearQueue(); checkPausedQueue()
+    addImportLog(`Done — ${successList.length} imported, ${closedList.length} closed, ${notFoundList.length} not found, ${failedList.length} failed.`, 'done')
+    // Record to history
+    saveImport(importId, label, {
+      total: ids.length, success: successList.length,
+      closed: closedList.length, notfound: notFoundList.length, failed: failedList.length,
+    })
+    document.getElementById('btn-pause-import').style.display = 'none'
+    document.getElementById('btn-cancel-import').style.display = 'none'
+    showImportReport(successList, closedList, notFoundList, failedList)
+    renderImportHistory()
+    render()
+  }
+}
+
+function addImportLog(text, type = '') {
+  const log = document.getElementById('import-log')
+  const div = document.createElement('div'); div.className = 'progress-item ' + type
+  div.textContent = (type === 'done' ? '✓ ' : type === 'err' ? '✗ ' : type === 'warn' ? '⏸ ' : '⋯ ') + text
+  log.appendChild(div); log.scrollTop = log.scrollHeight
+}
+function updateImportProgress(done, total) {
+  const pct = Math.round((done / total) * 100)
+  document.getElementById('import-bar').style.width = pct + '%'
+  document.getElementById('import-counter').textContent = `${done}/${total} (${pct}%)`
+}
+async function importCountdown(seconds) {
+  const log = document.getElementById('import-log')
+  const div = document.createElement('div'); div.className = 'progress-item warn'; log.appendChild(div)
+  for (let s = seconds; s > 0; s--) { div.textContent = `⏸ Resuming in ${s}s…`; await new Promise(r => setTimeout(r, 1000)) }
+  div.textContent = '⏸ Resuming now…'
+}
+
+// ── Report ─────────────────────────────────────────────────────────────────
+function showImportReport(successList, closedList, notFoundList, failedList) {
+  document.getElementById('import-report-box').style.display = 'block'
+  document.getElementById('import-report-pills').innerHTML = [
+    successList.length  ? `<span style="background:#d3f9d8;color:#2f9e44;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">✓ ${successList.length} imported</span>` : '',
+    closedList.length   ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">⚠ ${closedList.length} closed</span>` : '',
+    notFoundList.length ? `<span style="background:#fff3cd;color:#856404;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">⚠ ${notFoundList.length} not found</span>` : '',
+    failedList.length   ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.28rem .75rem;border-radius:20px;font-weight:700;font-size:.8rem;">✗ ${failedList.length} failed</span>` : '',
+  ].filter(Boolean).join('')
+
+  const closedSection = document.getElementById('import-closed-section')
+  if (closedList.length) {
+    closedSection.style.display = 'block'
+    document.getElementById('import-closed-tbody').innerHTML = closedList.map(b => `
+      <tr data-id="${b.id}" style="border-bottom:1px solid var(--border-subtle);">
+        <td style="padding:.5rem .5rem;text-align:center;"><input type="checkbox" class="import-closed-check" data-id="${b.id}"></td>
+        <td style="padding:.5rem .75rem;"><a href="${b.url || 'https://www.yelp.com/biz/' + b.id}" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);">${b.name}</a></td>
+        <td style="padding:.5rem .75rem;color:var(--text-muted);">${[b.location?.city, b.location?.state].filter(Boolean).join(', ')}</td>
+        <td style="padding:.5rem .5rem;text-align:center;">
+          <button class="import-closed-remove" data-id="${b.id}" style="background:none;border:none;cursor:pointer;color:var(--text-subtle);font-size:.9rem;padding:.2rem .3rem;border-radius:4px;">✕</button>
+        </td>
+      </tr>`).join('')
+    const selectAll = document.getElementById('import-closed-select-all')
+    const removeBtn = document.getElementById('import-closed-remove-selected')
+    function syncBtn() {
+      const chk = [...closedSection.querySelectorAll('.import-closed-check:checked')]
+      removeBtn.style.display = chk.length ? 'inline-block' : 'none'
+      removeBtn.textContent = `Remove selected (${chk.length})`
+      selectAll.indeterminate = chk.length > 0 && chk.length < closedList.length
+      selectAll.checked = chk.length === closedList.length
+    }
+    selectAll.onchange = () => { closedSection.querySelectorAll('.import-closed-check').forEach(cb => cb.checked = selectAll.checked); syncBtn() }
+    closedSection.querySelectorAll('.import-closed-check').forEach(cb => cb.addEventListener('change', syncBtn))
+    removeBtn.onclick = () => {
+      const ids = [...closedSection.querySelectorAll('.import-closed-check:checked')].map(cb => cb.dataset.id)
+      ids.forEach(id => { removeBusiness(id); closedSection.querySelector(`[data-id="${id}"]`)?.remove() })
+      render(); syncBtn()
+    }
+    closedSection.querySelectorAll('.import-closed-remove').forEach(btn => {
+      btn.addEventListener('click', () => { removeBusiness(btn.dataset.id); btn.closest('tr').remove(); render() })
+      btn.addEventListener('mouseover', () => { btn.style.color = 'var(--red)' })
+      btn.addEventListener('mouseout',  () => { btn.style.color = 'var(--text-subtle)' })
+    })
+  } else { closedSection.style.display = 'none' }
+
+  const problems = [...notFoundList, ...failedList]
+  const nfSection = document.getElementById('import-notfound-section')
+  if (problems.length) {
+    nfSection.style.display = 'block'
+    nfSection.innerHTML = `<p style="font-weight:700;margin-bottom:.5rem;">Need manual review (${problems.length}):</p>
+      <div style="display:flex;flex-direction:column;gap:.3rem;">
+        ${problems.map(({ id, reason }) => `
+          <div style="padding:.4rem .6rem;background:var(--gray-light);border-radius:6px;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;">${id}</a>
+            <div style="font-size:.76rem;color:var(--text-muted);">${reason}</div>
+          </div>`).join('')}
+      </div>`
+  } else { nfSection.style.display = 'none' }
+}
+
+// ── Import History ─────────────────────────────────────────────────────────
+async function renderImportHistory() {
+  const imports = await getImports()
+  const el = document.getElementById('import-history-table')
+  if (!imports.length) {
+    el.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">No completed imports yet.</p>'
     return
   }
-  checkBanner.style.display = 'flex'
-  checkMsg.textContent = `Checking ${needCheck.length} business statuses…`
+  const sorted = [...imports].sort((a, b) => b.timestamp - a.timestamp)
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Label</th>
+          <th style="padding:.4rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Date</th>
+          <th style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">✓</th>
+          <th style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Closed</th>
+          <th style="padding:.4rem .75rem;text-align:right;font-weight:700;color:var(--text-muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;">Issues</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(imp => {
+          const d = new Date(imp.timestamp)
+          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          const issues = (imp.counts.notfound || 0) + (imp.counts.failed || 0)
+          return `<tr style="border-bottom:1px solid var(--border-subtle);">
+            <td style="padding:.5rem .75rem;font-weight:600;">${imp.label || 'Untitled'}</td>
+            <td style="padding:.5rem .75rem;color:var(--text-muted);">${dateStr}</td>
+            <td style="padding:.5rem .75rem;text-align:right;color:var(--green);">${imp.counts.success || 0}</td>
+            <td style="padding:.5rem .75rem;text-align:right;${imp.counts.closed ? 'color:var(--red);' : 'color:var(--text-subtle);'}">${imp.counts.closed || 0}</td>
+            <td style="padding:.5rem .75rem;text-align:right;${issues ? 'color:var(--yellow);' : 'color:var(--text-subtle);'}">${issues}</td>
+          </tr>`
+        }).join('')}
+      </tbody>
+    </table>`
+}
+
+// ══ Tab: Check Closed ═════════════════════════════════════════════════════
+function refreshClosedStats() {
+  const all = loadCollection().filter(b => !b.not_found)
+  const total = all.length
+  const closed = all.filter(b => b.closed_status === 'closed').length
+  const stale = all.filter(b => {
+    try {
+      const raw = localStorage.getItem('yc_biz_' + b.id); if (!raw) return true
+      const { ts, ttl } = JSON.parse(raw); return Date.now() - ts > ttl
+    } catch { return true }
+  }).length
+  const cached = total - stale
+  document.getElementById('closed-stats').innerHTML = `
+    <span class="stat-pill">${total} total</span>
+    <span class="stat-pill ok">${cached} cached (fresh)</span>
+    <span class="stat-pill warn">${stale} need checking</span>
+    ${closed ? `<span class="stat-pill danger">${closed} marked closed</span>` : ''}`
+  renderClosedReport()
+}
+
+function renderClosedReport() {
+  const closed = loadCollection().filter(b => b.closed_status === 'closed' && !b.not_found)
+  const el = document.getElementById('closed-report')
+  if (!closed.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.84rem;margin-top:.5rem;">No businesses currently marked as permanently closed.</p>'
+    return
+  }
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+      <p style="font-weight:700;font-size:.9rem;">${closed.length} permanently closed</p>
+      <button id="btn-remove-selected-closed" class="btn-sm danger" style="display:none;">Remove selected</button>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="width:36px;padding:.45rem .5rem;text-align:center;">
+            <input type="checkbox" id="closed-select-all" title="Select all">
+          </th>
+          <th style="padding:.45rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;">Business</th>
+          <th style="padding:.45rem .75rem;text-align:left;font-weight:700;color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;">Location</th>
+          <th style="width:36px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${closed.map(b => `
+          <tr class="closed-table-row" data-id="${b.id}" style="border-bottom:1px solid var(--border-subtle);">
+            <td style="padding:.55rem .5rem;text-align:center;">
+              <input type="checkbox" class="closed-row-check" data-id="${b.id}">
+            </td>
+            <td style="padding:.55rem .75rem;">
+              <a href="${b.url || 'https://www.yelp.com/biz/' + b.id}" target="_blank" rel="noopener" style="font-weight:600;color:var(--text);">${b.name}</a>
+            </td>
+            <td style="padding:.55rem .75rem;color:var(--text-muted);">
+              ${[b.location?.city, b.location?.state].filter(Boolean).join(', ')}
+            </td>
+            <td style="padding:.55rem .5rem;text-align:center;">
+              <button class="closed-row-remove" data-id="${b.id}" title="Remove"
+                style="background:none;border:none;cursor:pointer;color:var(--text-subtle);font-size:.95rem;line-height:1;padding:.2rem .3rem;border-radius:4px;transition:color .15s,background .15s;">✕</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`
+
+  // Select all
+  const selectAll = el.querySelector('#closed-select-all')
+  const removeSelectedBtn = el.querySelector('#btn-remove-selected-closed')
+
+  function updateRemoveBtn() {
+    const checked = [...el.querySelectorAll('.closed-row-check:checked')]
+    removeSelectedBtn.style.display = checked.length ? 'inline-block' : 'none'
+    removeSelectedBtn.textContent = `Remove selected (${checked.length})`
+    selectAll.indeterminate = checked.length > 0 && checked.length < closed.length
+    selectAll.checked = checked.length === closed.length
+  }
+
+  selectAll.addEventListener('change', () => {
+    el.querySelectorAll('.closed-row-check').forEach(cb => cb.checked = selectAll.checked)
+    updateRemoveBtn()
+  })
+  el.querySelectorAll('.closed-row-check').forEach(cb => {
+    cb.addEventListener('change', updateRemoveBtn)
+  })
+
+  removeSelectedBtn.addEventListener('click', () => {
+    const ids = [...el.querySelectorAll('.closed-row-check:checked')].map(cb => cb.dataset.id)
+    if (!ids.length) return
+    ids.forEach(id => removeBusiness(id)); render(); refreshClosedStats()
+  })
+
+  el.querySelectorAll('.closed-row-remove').forEach(btn => {
+    btn.addEventListener('mouseover', () => { btn.style.color = 'var(--red)'; btn.style.background = '#ffe0e0' })
+    btn.addEventListener('mouseout',  () => { btn.style.color = 'var(--text-subtle)'; btn.style.background = 'none' })
+    btn.addEventListener('click', () => { removeBusiness(btn.dataset.id); render(); refreshClosedStats() })
+  })
+}
+
+document.getElementById('btn-run-closed-check').addEventListener('click', () => {
+  const all = loadCollection().filter(b => !b.not_found)
+  if (!all.length) return
+  const progressEl = document.getElementById('closed-check-progress')
+  const msgEl = document.getElementById('closed-check-msg')
+  const barEl = document.getElementById('closed-bar')
+  progressEl.style.display = 'block'
   checkClosedBusinesses(
-    (checked, total) => { checkMsg.textContent = `Checking… ${checked}/${total}`; render() },
-    (closed) => { checkBanner.style.display = 'none'; if (closed.length) showClosedBanner(closed); render() }
+    (checked, total, biz, msg) => {
+      const pct = Math.round((checked / total) * 100)
+      barEl.style.width = pct + '%'
+      msgEl.textContent = msg || `Checking… ${checked}/${total}`
+      render()
+    },
+    (closed) => {
+      progressEl.style.display = 'none'
+      render(); refreshClosedStats()
+    }
   )
-}
-
-function showClosedBanner(closed) {
-  closedMsg.textContent = `${closed.length} place${closed.length !== 1 ? 's' : ''} may have permanently closed.`
-  closedBanner.style.display = 'flex'
-}
-
-document.getElementById('btn-remove-closed').addEventListener('click', () => {
-  loadCollection().filter(b => b.closed_status === 'closed').forEach(b => removeBusiness(b.id))
-  closedBanner.style.display = 'none'; render()
 })
 
-navigator.geolocation?.getCurrentPosition(p => {
-  window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
+// ── Cache debug ────────────────────────────────────────────────────────────
+function renderCacheDebug() {
+  const raw_all = loadCollection().filter(b => !b.not_found)
+  const el  = document.getElementById('cache-debug-table')
+  if (!raw_all.length) { el.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">No businesses to inspect.</p>'; return }
+
+  // Pre-compute mismatches so we can sort before rendering
+  const mismatchSet = new Set(raw_all.filter(b => {
+    try {
+      const r = localStorage.getItem('yc_biz_' + b.id); if (!r) return false
+      const { data } = JSON.parse(r)
+      return (b.closed_status === 'closed') !== data.is_closed
+    } catch { return false }
+  }).map(b => b.id))
+
+  // Mismatches first, then alphabetical
+  const all = [...raw_all].sort((a, b) => {
+    const am = mismatchSet.has(a.id) ? 0 : 1
+    const bm = mismatchSet.has(b.id) ? 0 : 1
+    return am - bm || a.name.localeCompare(b.name)
+  })
+
+  const rows = all.map(b => {
+    let cached = null, cacheAge = null, cacheFresh = false
+    try {
+      const raw = localStorage.getItem('yc_biz_' + b.id)
+      if (raw) {
+        const entry = JSON.parse(raw)
+        cached = entry.data
+        const ageMs = Date.now() - entry.ts
+        cacheFresh = ageMs < entry.ttl
+        const ageMins = Math.round(ageMs / 60000)
+        cacheAge = ageMins < 60
+          ? `${ageMins}m ago`
+          : ageMins < 1440
+          ? `${Math.round(ageMins / 60)}h ago`
+          : `${Math.round(ageMins / 1440)}d ago`
+      }
+    } catch {}
+
+    const stored   = b.closed_status || 'null'
+    const apiSays  = cached ? (cached.is_closed ? 'closed' : 'open') : '—'
+    const match    = !cached
+      ? 'no-cache'
+      : (b.closed_status === 'closed') === cached.is_closed
+      ? 'match'
+      : 'mismatch'
+
+    const freshBadge = cached
+      ? cacheFresh
+        ? `<span style="color:var(--green);font-size:.7rem;">${cacheAge} (fresh)</span>`
+        : `<span style="color:var(--yellow);font-size:.7rem;">${cacheAge} (stale)</span>`
+      : '<span style="color:var(--text-subtle);font-size:.7rem;">not cached</span>'
+
+    const actionCell = match === 'mismatch'
+      ? `<div style="display:flex;gap:.3rem;">
+           <button class="btn-sm" data-recheck="${b.id}" style="font-size:.7rem;padding:.18rem .4rem;white-space:nowrap;">Re-check</button>
+           <button class="btn-sm danger" data-delete-debug="${b.id}" style="font-size:.7rem;padding:.18rem .4rem;white-space:nowrap;">Delete</button>
+         </div>`
+      : match === 'match'
+        ? '<span style="color:var(--green);font-weight:600;">✓ match</span>'
+        : '<span style="color:var(--text-subtle);">no cache</span>'
+
+    const rowBg = match === 'mismatch' ? 'background:#fff4e6;' : ''
+
+    return `<tr style="border-bottom:1px solid var(--border-subtle);${rowBg}" data-row-id="${b.id}">
+      <td style="padding:.4rem .6rem;font-weight:500;font-size:.8rem;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        <a href="${b.url || 'https://www.yelp.com/biz/'+b.id}" target="_blank" rel="noopener" style="color:var(--text);">${b.name}</a>
+      </td>
+      <td style="padding:.4rem .6rem;font-size:.78rem;font-family:monospace;">${stored}</td>
+      <td style="padding:.4rem .6rem;font-size:.78rem;font-family:monospace;">${apiSays}</td>
+      <td style="padding:.4rem .6rem;">${freshBadge}</td>
+      <td style="padding:.4rem .6rem;">${actionCell}</td>
+    </tr>`
+  })
+
+  const mismatches = mismatchSet.size
+
+  el.innerHTML = `
+    <div style="display:flex;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:.78rem;background:var(--gray-light);border-radius:4px;padding:.2rem .5rem;">${all.length} businesses</span>
+      ${mismatches
+        ? `<span style="font-size:.78rem;background:#ffe0e0;color:#c92a2a;border-radius:4px;padding:.2rem .5rem;font-weight:600;">⚠ ${mismatches} mismatch${mismatches!==1?'es':''}</span>
+           <button id="btn-recheck-all-mismatches" class="btn-sm" style="font-size:.72rem;">Re-check all mismatches</button>`
+        : '<span style="font-size:.78rem;background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.2rem .5rem;font-weight:600;">✓ all match</span>'}
+    </div>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:600px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border);">
+          <th style="padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.68rem;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Business</th>
+          <th style="padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.68rem;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Stored</th>
+          <th style="padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.68rem;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Cache</th>
+          <th style="padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.68rem;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Age</th>
+          <th style="padding:.35rem .6rem;text-align:left;font-weight:700;font-size:.68rem;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows.join('')}</tbody>
+    </table>
+    </div>`
+
+  // Re-check a single business: clears cache, fetches fresh, updates stored status
+  async function recheckBusiness(id) {
+    localStorage.removeItem('yc_biz_' + id)
+    const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const biz = await res.json()
+    const status = { id: biz.id, name: biz.name, is_closed: biz.is_closed, hours: biz.hours, coordinates: biz.coordinates }
+    localStorage.setItem('yc_biz_' + id, JSON.stringify({ ts: Date.now(), data: status, ttl: 7 * 24 * 3600000 }))
+    updateBusiness(id, { closed_status: biz.is_closed ? 'closed' : 'open' })
+  }
+
+  el.querySelectorAll('[data-recheck]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.recheck
+      btn.textContent = '…'; btn.disabled = true
+      try {
+        await recheckBusiness(id); render(); refreshClosedStats(); renderCacheDebug()
+      } catch (err) {
+        btn.textContent = '✗'; btn.disabled = false; btn.title = err.message
+      }
+    })
+  })
+
+  el.querySelectorAll('[data-delete-debug]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      removeBusiness(btn.dataset.deleteDebug); render(); refreshClosedStats(); renderCacheDebug()
+    })
+  })
+
+  document.getElementById('btn-recheck-all-mismatches')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-recheck-all-mismatches')
+    btn.textContent = 'Checking…'; btn.disabled = true
+    for (const id of mismatchSet) {
+      try { await recheckBusiness(id); render() } catch {}
+    }
+    refreshClosedStats(); renderCacheDebug()
+  })
+}
+
+document.getElementById('btn-refresh-cache-debug').addEventListener('click', renderCacheDebug)
+
+// Auto-render when details is opened
+document.querySelector('#tab-closed details').addEventListener('toggle', function() {
+  if (this.open) renderCacheDebug()
 })
 
+// ══ Tag Popover ════════════════════════════════════════════════════════════
+const PALETTE = [
+  '#f03e3e','#e8590c','#f59f00','#5c940d',
+  '#0b7285','#1864ab','#5f3dc4','#a61e4d',
+  '#495057','#2f9e44','#1098ad','#d6336c',
+]
+
+let activePopover = null
+
+function closeTagPopover() {
+  if (activePopover) { activePopover.remove(); activePopover = null }
+}
+
+// ── Shared color picker (swatches + wheel + hex) ──────────────────────────
+function mountColorPicker(container, initialColor, onChange) {
+  let selected = (initialColor || PALETTE[5]).toLowerCase()
+  const hexBare = selected.replace('#', '')
+  container.innerHTML = `
+    <div class="color-palette" style="margin-bottom:.5rem;">
+      ${PALETTE.map(c => `<span class="color-swatch${c===selected?' selected':''}" data-color="${c}" style="background:${c}" title="${c}"></span>`).join('')}
+    </div>
+    <div style="padding-top:.45rem;border-top:1px solid var(--border);">
+      <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-subtle);margin-bottom:.3rem;">Custom</div>
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <input type="color" class="cpick-wheel" value="${selected}" title="Open color wheel"
+          style="width:34px;height:34px;padding:3px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;background:none;flex-shrink:0;">
+        <div style="display:flex;align-items:center;border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg);flex:1;transition:border-color .15s;">
+          <span style="padding:.3rem .4rem;font-size:.82rem;font-family:monospace;color:var(--text-subtle);border-right:1px solid var(--border);user-select:none;">#</span>
+          <input type="text" class="cpick-hex" value="${hexBare}" maxlength="6" spellcheck="false"
+            style="flex:1;border:none;background:transparent;font-size:.82rem;font-family:monospace;padding:.3rem .4rem;outline:none;color:var(--text);min-width:0;" placeholder="rrggbb">
+        </div>
+        <span class="cpick-preview" style="width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:${selected};flex-shrink:0;"></span>
+      </div>
+    </div>`
+  const palette = container.querySelector('.color-palette')
+  const wheel   = container.querySelector('.cpick-wheel')
+  const hex     = container.querySelector('.cpick-hex')
+  const preview = container.querySelector('.cpick-preview')
+  const hexWrap = hex.parentElement
+
+  function pick(color, src) {
+    selected = color.toLowerCase()
+    const bare = selected.replace('#', '')
+    palette.querySelectorAll('.color-swatch').forEach(s => s.classList.toggle('selected', s.dataset.color === selected))
+    if (src !== 'wheel') wheel.value = selected
+    if (src !== 'hex')   hex.value   = bare
+    preview.style.background = selected
+    onChange?.(selected)
+  }
+  palette.addEventListener('click', e => { const s = e.target.closest('.color-swatch'); if (s) pick(s.dataset.color, 'palette') })
+  wheel.addEventListener('input', () => pick(wheel.value, 'wheel'))
+  hex.addEventListener('focus', () => { hexWrap.style.borderColor = 'var(--blue)' })
+  hex.addEventListener('blur',  () => {
+    hexWrap.style.borderColor = ''
+    hex.value = selected.replace('#', '')  // revert invalid
+  })
+  hex.addEventListener('input', () => {
+    const v = '#' + hex.value.replace(/[^0-9a-fA-F]/g, '')
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) pick(v, 'hex')
+  })
+  return { getColor: () => selected }
+}
+
+function openTagPopover(bizId, anchorEl) {
+  closeTagPopover()
+  const biz = loadCollection().find(b => b.id === bizId)
+  const bizTags = new Set(biz?.tags || [])
+  const allTags = getAllTags()
+  const tagMeta = getTagMeta()
+
+  const pop = document.createElement('div')
+  pop.className = 'tag-popover'
+  pop.innerHTML = `
+    <input class="tag-pop-search" placeholder="Search or type new tag…" autocomplete="off">
+    <div class="tag-pop-list"></div>
+    <div class="tag-pop-create" style="display:none;">
+      <div class="tag-pop-divider"></div>
+      <div class="tag-pop-create-label">Create "<span class="new-tag-preview"></span>"</div>
+      <div class="pop-color-picker" style="margin-bottom:.4rem;"></div>
+      <button class="btn-primary" id="pop-confirm-btn" style="font-size:.75rem;padding:.32rem .7rem;width:100%;">Add tag</button>
+    </div>`
+
+  const search     = pop.querySelector('.tag-pop-search')
+  const list       = pop.querySelector('.tag-pop-list')
+  const createSect = pop.querySelector('.tag-pop-create')
+  const pickerWrap = pop.querySelector('.pop-color-picker')
+  const confirmBtn = pop.querySelector('#pop-confirm-btn')
+  const pickerRef  = mountColorPicker(pickerWrap, PALETTE[5])
+
+  function renderList(q = '') {
+    const matches = allTags.filter(t =>
+      !bizTags.has(t) && (!q || t.toLowerCase().includes(q.toLowerCase()))
+    )
+    list.innerHTML = matches.length
+      ? matches.map(t => {
+          const c = tagMeta[t]?.color
+          return `<div class="tag-pop-item" data-tag="${t}">
+            <span class="tag-pop-dot" style="background:${c || 'var(--border)'}"></span>${t}
+          </div>`
+        }).join('')
+      : `<div class="tag-pop-empty">${q ? 'No match' : 'No tags yet'}</div>`
+
+    const exactMatch = matches.some(t => t.toLowerCase() === q.toLowerCase())
+    if (q && !exactMatch) {
+      createSect.style.display = 'block'
+      pop.querySelector('.new-tag-preview').textContent = q
+    } else {
+      createSect.style.display = 'none'
+    }
+  }
+
+  search.addEventListener('input', e => renderList(e.target.value))
+  list.addEventListener('click', e => {
+    const item = e.target.closest('.tag-pop-item'); if (!item) return
+    addTag(bizId, item.dataset.tag); closeTagPopover(); render()
+  })
+  confirmBtn.addEventListener('click', () => {
+    const name = search.value.trim(); if (!name) return
+    setTagColor(name, pickerRef.getColor())
+    addTag(bizId, name); closeTagPopover(); render()
+  })
+  search.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const name = search.value.trim(); if (!name) return
+      const exact = getAllTags().find(t => t.toLowerCase() === name.toLowerCase())
+      if (exact && !bizTags.has(exact)) { addTag(bizId, exact); closeTagPopover(); render() }
+      else if (!exact) { setTagColor(name, pickerRef.getColor()); addTag(bizId, name); closeTagPopover(); render() }
+    }
+    if (e.key === 'Escape') closeTagPopover()
+  })
+
+  renderList()
+  document.body.appendChild(pop)
+  activePopover = pop
+
+  const rect = anchorEl.getBoundingClientRect()
+  let top  = rect.bottom + 4
+  let left = rect.left
+  if (left + 230 > window.innerWidth - 8) left = window.innerWidth - 238
+  if (top + 300  > window.innerHeight - 8) top = rect.top - 4 - pop.offsetHeight
+  pop.style.top = top + 'px'
+  pop.style.left = left + 'px'
+  search.focus()
+}
+
+document.addEventListener('click', e => {
+  if (activePopover && !activePopover.contains(e.target) && !e.target.closest('[data-add-tag]'))
+    closeTagPopover()
+})
+
+// ══ Tab: Tags ═════════════════════════════════════════════════════════════
+function getTagCounts() {
+  const counts = {}
+  for (const biz of loadCollection()) for (const t of (biz.tags||[])) counts[t] = (counts[t]||0)+1
+  return counts
+}
+
+// Create tag color picker
+let newTagPickerRef = null
+function initNewTagPicker() {
+  const container = document.getElementById('new-tag-picker')
+  if (!container) return
+  newTagPickerRef = mountColorPicker(container, PALETTE[5])
+}
+initNewTagPicker()
+
+document.getElementById('btn-create-tag')?.addEventListener('click', () => {
+  const name = document.getElementById('new-tag-name').value.trim()
+  if (!name) { alert('Enter a tag name.'); return }
+  setTagColor(name, newTagPickerRef?.getColor() || PALETTE[5])
+  document.getElementById('new-tag-name').value = ''
+  renderTagsTab()
+})
+
+function renderTagsTab(filterStr = '') {
+  const counts = getTagCounts()
+  const tagMeta = getTagMeta()
+  // Union of tags from businesses + tag meta (pre-created tags)
+  const allTagNames = [...new Set([...Object.keys(counts), ...Object.keys(tagMeta)])]
+  const tags = allTagNames
+    .filter(t => !filterStr || t.toLowerCase().includes(filterStr.toLowerCase()))
+    .sort((a, b) => (counts[b]||0) - (counts[a]||0) || a.localeCompare(b))
+
+  const el = document.getElementById('tags-list')
+  if (!tags.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.84rem;">No tags yet. Create one above.</p>'; return }
+
+  el.innerHTML = `
+    <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-subtle);
+                display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;
+                padding:.35rem .75rem;margin-bottom:.2rem;">
+      <span></span><span>Tag</span><span style="text-align:right;">Places</span><span></span>
+    </div>
+    ${tags.map(tag => {
+      const color = tagMeta[tag]?.color
+      const count = counts[tag] || 0
+      return `<div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;
+                   padding:.5rem .75rem;border-radius:var(--radius-sm);background:var(--surface);
+                   border:1px solid var(--border);margin-bottom:.3rem;">
+        <span class="color-swatch tag-color-swatch" data-tag="${tag}"
+          style="background:${color||'var(--border)'};width:22px;height:22px;cursor:pointer;" title="Click to change color"></span>
+        <span style="font-weight:600;font-size:.875rem;">${tag}</span>
+        <span style="font-size:.8rem;color:var(--text-muted);font-weight:600;">${count}</span>
+        <div style="display:flex;gap:.3rem;">
+          <button class="btn-sm" data-rename-tag="${tag}">Rename</button>
+          <button class="btn-sm danger" data-delete-tag="${tag}">Delete</button>
+        </div>
+      </div>`
+    }).join('')}`
+
+  // Inline color picker on swatch click
+  el.querySelectorAll('.tag-color-swatch').forEach(sw => {
+    sw.addEventListener('click', e => {
+      e.stopPropagation()
+      closeInlineColorPicker()
+      const tag = sw.dataset.tag
+      const pop = document.createElement('div')
+      pop.className = 'tag-popover'
+      pop.id = 'inline-color-picker'
+      pop.innerHTML = '<div class="inline-cpick-wrap"></div>'
+      const ref = mountColorPicker(pop.querySelector('.inline-cpick-wrap'), getTagMeta()[tag]?.color, color => {
+        setTagColor(tag, color)
+        sw.style.background = color
+        render()
+      })
+      document.body.appendChild(pop)
+      const rect = sw.getBoundingClientRect()
+      pop.style.top  = (rect.bottom + 4) + 'px'
+      pop.style.left = rect.left + 'px'
+      pop.style.width = 'auto'
+      // Close when done button clicked or clicking outside
+      const done = document.createElement('button')
+      done.className = 'btn-sm'; done.textContent = 'Done'; done.style.cssText = 'margin-top:.4rem;width:100%;'
+      done.addEventListener('click', () => { closeInlineColorPicker(); renderTagsTab(document.getElementById('tag-search').value) })
+      pop.appendChild(done)
+    })
+  })
+
+  el.querySelectorAll('[data-rename-tag]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const oldTag = btn.dataset.renameTag
+      const newTag = prompt(`Rename "${oldTag}" to:`, oldTag)?.trim()
+      if (!newTag || newTag === oldTag) return
+      if (getAllTags().includes(newTag) && !confirm(`"${newTag}" already exists. Merge?`)) return
+      renameTagGlobal(oldTag, newTag); render(); renderTagsTab(document.getElementById('tag-search').value)
+    })
+  })
+  el.querySelectorAll('[data-delete-tag]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.deleteTag
+      const count = counts[tag] || 0
+      if (!confirm(`Delete "${tag}"${count ? ` from all ${count} place${count!==1?'s':''}` : ''}?`)) return
+      deleteTagGlobal(tag); render(); renderTagsTab(document.getElementById('tag-search').value)
+    })
+  })
+}
+
+function closeInlineColorPicker() {
+  document.getElementById('inline-color-picker')?.remove()
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#inline-color-picker') && !e.target.closest('.tag-color-swatch')) closeInlineColorPicker()
+})
+
+document.getElementById('tag-search').addEventListener('input', e => renderTagsTab(e.target.value))
+
+// ══ Tab: Connections ══════════════════════════════════════════════════════
+function renderYelpQuota(info) {
+  if (!info || !info.dailyLimit) {
+    document.getElementById('yelp-quota-text').textContent = 'No data yet — click Refresh'
+    document.getElementById('yelp-quota-bar').style.width = '0%'
+    document.getElementById('yelp-last-updated').textContent = '—'
+    document.getElementById('yelp-reset-text').textContent = ''
+    return
+  }
+  const remaining = parseInt(info.remaining, 10)
+  const limit     = parseInt(info.dailyLimit, 10)
+  const pct       = Math.round((remaining / limit) * 100)
+  const barColor  = pct > 50 ? 'var(--green)' : pct > 20 ? 'var(--yellow)' : 'var(--red)'
+  document.getElementById('yelp-quota-text').textContent = `${remaining.toLocaleString()} / ${limit.toLocaleString()} calls remaining`
+  document.getElementById('yelp-quota-bar').style.cssText = `background:${barColor};height:100%;width:${pct}%;transition:width .4s;`
+  if (info.updated) {
+    const ago = Math.round((Date.now() - info.updated) / 60000)
+    document.getElementById('yelp-last-updated').textContent = ago < 1 ? 'just now' : `${ago}m ago`
+  }
+  if (info.resetTime) {
+    const reset = new Date(parseInt(info.resetTime, 10) * 1000)
+    document.getElementById('yelp-reset-text').textContent =
+      `Resets ${reset.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  }
+}
+
+function setYelpStatus(type, text) {
+  const dot  = document.querySelector('#yelp-conn-status .status-dot')
+  const span = document.getElementById('yelp-conn-status-text')
+  span.textContent = text
+  dot.className = 'status-dot ' + type   // 'ok' | 'error' | 'checking'
+}
+
+async function refreshYelpStatus() {
+  setYelpStatus('checking', 'Checking…')
+  document.getElementById('yelp-conn-error').style.display = 'none'
+  try {
+    const info = await checkYelpRateLimit()
+    setYelpStatus('ok', 'Connected')
+    renderYelpQuota(info)
+  } catch (err) {
+    setYelpStatus('error', 'Error')
+    document.getElementById('yelp-conn-error').style.display = 'block'
+    document.getElementById('yelp-conn-error').textContent = err.message
+  }
+}
+
+document.getElementById('btn-test-yelp').addEventListener('click', refreshYelpStatus)
+document.getElementById('btn-refresh-yelp').addEventListener('click', refreshYelpStatus)
+
+function initConnectionsTab() {
+  // Show last stored quota without a network call
+  renderYelpQuota(getRateInfo())
+  const info = getRateInfo()
+  if (info.dailyLimit) setYelpStatus('ok', 'Connected (cached)')
+  else setYelpStatus('checking', 'Not checked yet')
+}
+
+// ── Admin password gate ────────────────────────────────────────────────────
+;(function() {
+  if (localStorage.getItem('admin_unlocked') === '1') return
+  const overlay = document.getElementById('admin-gate')
+  overlay.style.display = 'flex'
+  const input = document.getElementById('gate-input')
+  const error = document.getElementById('gate-error')
+  document.getElementById('gate-submit').addEventListener('click', checkGate)
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') checkGate() })
+  function checkGate() {
+    if (input.value === 'helloworld') {
+      localStorage.setItem('admin_unlocked', '1')
+      overlay.style.display = 'none'
+    } else {
+      error.textContent = 'Incorrect password'
+      overlay.classList.add('gate-shake')
+      setTimeout(() => overlay.classList.remove('gate-shake'), 500)
+      input.value = ''
+    }
+  }
+})()
+
+document.getElementById('btn-lock-admin')?.addEventListener('click', () => {
+  localStorage.removeItem('admin_unlocked')
+  location.reload()
+})
+
+// ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('collection-updated', render)
+await initCollection()
 render()
-runClosedCheck()
+checkPausedQueue()
+renderImportHistory()
+refreshClosedStats()
+renderTagsTab()
 </script>
 </body>
 </html>

@@ -11,30 +11,64 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
-    /* Numbered rounded-square pins — white with dark number, Infatuation style */
+    /* Square numbered pins — Yelp blue, white number */
     .num-pin {
-      border-radius: 5px;
-      background: #ffffff;
-      color: #0a0a0a;
+      border-radius: 6px;
+      background: #0047FF;
+      color: #fff;
       font: 700 11px/1 'Inter', sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
-      border: none;
-      box-shadow: 0 1px 4px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.08);
+      box-shadow: 0 2px 6px rgba(0,71,255,.4), 0 0 0 2px #fff;
       cursor: pointer;
       transition: transform .15s;
       letter-spacing: -.02em;
     }
     .num-pin:hover { transform: scale(1.12); }
     .num-pin.highlighted {
-      background: #0047FF !important;
-      color: #fff !important;
+      background: #0a0a0a !important;
       transform: scale(1.2);
-      box-shadow: 0 2px 8px rgba(0,71,255,.4);
+      box-shadow: 0 2px 8px rgba(0,0,0,.4), 0 0 0 2px #fff;
     }
-    .num-pin.closed { background: #f03e3e; color: #fff; }
+    .num-pin.closed { background: #f03e3e; }
+    .near-me-btn {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: .3rem .7rem;
+      font-size: .72rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: Inter, sans-serif;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+      margin-top: 8px;
+    }
+    .near-me-btn:hover { background: #f5f5f5; }
+    /* You are here — pulsing blue dot */
+    .user-dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #e03131;
+      border: 2.5px solid #fff;
+      box-shadow: 0 2px 8px rgba(224,49,49,.5);
+      position: relative;
+    }
+    .user-dot::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(224,49,49,.18);
+      animation: user-pulse 2s ease-out infinite;
+      transform: translate(-50%,-50%) scale(0.3);
+    }
+    @keyframes user-pulse {
+      0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
+      100% { transform: translate(-50%,-50%) scale(1);   opacity: 0; }
+    }
 
     /* Card highlighted when map pin clicked */
     .card.map-highlighted {
@@ -47,29 +81,33 @@
 
 <nav class="nav">
   <span class="nav-logo">Collections</span>
-  <div class="nav-links">
-    <a href="index.html" class="nav-link active">Browse</a>
-    <a href="discover.html" class="nav-link">Discover</a>
+  <div class="nav-links" id="nav-links">
+    <a href="index.html" class="nav-link active">My List</a>
     <a href="admin.html" class="nav-link">Admin</a>
-    <button class="dark-toggle" id="dark-toggle">Dark</button>
+  </div>
+  <div class="nav-menu-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">⋮</button>
+    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+    </div>
   </div>
 </nav>
 
-<!-- ── Toolbar: Filter left, count center, List/Map right ── -->
+<!-- ── Toolbar ── -->
 <div class="toolbar" id="toolbar">
-  <div class="toolbar-left">
-    <button class="toolbar-filter-btn" id="filter-toggle-btn">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="3.5" x2="13" y2="3.5"/><line x1="3" y1="7" x2="11" y2="7"/><line x1="5" y1="10.5" x2="9" y2="10.5"/></svg>
-      Filter
-    </button>
-    <span class="toolbar-count" id="count-label"></span>
+  <div class="search-bar-wrap">
+    <div class="search-bar">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
+      <input type="search" id="search-input" placeholder="Search name, cuisine, neighborhood, notes, tags…" autocomplete="off">
+      <button id="btn-filter-toggle" class="search-filter-btn">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="3" x2="12" y2="3"/><line x1="3" y1="6.5" x2="10" y2="6.5"/><line x1="5" y1="10" x2="8" y2="10"/></svg>
+        Filters
+      </button>
+    </div>
   </div>
   <div class="toolbar-right">
-    <button class="view-btn active" id="btn-random">🎲</button>
-    <div class="view-seg">
-      <button class="seg-btn active" id="btn-list-view">List</button>
-      <button class="seg-btn" id="btn-map-view">Map</button>
-    </div>
+    <span class="toolbar-count" id="count-label"></span>
+    <button class="view-btn" id="btn-map-toggle">Map</button>
   </div>
 </div>
 
@@ -79,6 +117,59 @@
 
 <!-- ── App body: list + collapsible map panel ── -->
 <div class="app-body" id="app-body">
+
+  <!-- Filter drawer — anchored to top of list pane, drops down -->
+  <div class="filter-drawer" id="filter-drawer">
+    <span class="filter-label">Status</span>
+    <div class="filter-row" id="status-chips">
+      <span class="chip active" data-val="">All</span>
+      <span class="chip" data-val="want">Want to Go</span>
+      <span class="chip" data-val="been">Been There</span>
+    </div>
+
+    <span class="filter-label" style="margin-top:.875rem;display:block;">Price</span>
+    <div class="filter-row" id="price-chips">
+      <span class="chip" data-val="$">$</span>
+      <span class="chip" data-val="$$">$$</span>
+      <span class="chip" data-val="$$$">$$$</span>
+      <span class="chip" data-val="$$$$">$$$$</span>
+    </div>
+
+    <span class="filter-label" style="margin-top:.875rem;display:block;">Rating</span>
+    <div class="filter-row" id="rating-chips">
+      <span class="chip active" data-val="">Any</span>
+      <span class="chip" data-val="3">3+</span>
+      <span class="chip" data-val="4">4+</span>
+      <span class="chip" data-val="4.5">4.5+</span>
+    </div>
+
+    <span class="filter-label" style="margin-top:.875rem;display:block;">Tags</span>
+    <div class="filter-row" id="tag-chips"></div>
+
+    <div style="margin-top:.875rem;display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
+      <div>
+        <span class="filter-label" style="display:block;margin-bottom:.35rem;">Sort</span>
+        <select class="sort-select" id="sort-select">
+          <option value="saved">Date added</option>
+          <option value="rating">Rating</option>
+          <option value="name">Name A–Z</option>
+          <option value="distance">Distance</option>
+        </select>
+      </div>
+      <div id="zip-wrap" style="display:none;">
+        <span class="filter-label" style="display:block;margin-bottom:.35rem;">or enter ZIP</span>
+        <input type="text" id="zip-input" placeholder="90210" maxlength="10" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-family:var(--font);background:var(--bg);color:var(--text);">
+        <span id="zip-status" style="font-size:.72rem;color:var(--text-subtle);margin-left:.3rem;"></span>
+      </div>
+      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
+        <input type="checkbox" id="show-closed"> Show closed
+      </label>
+      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
+        <input type="checkbox" id="open-now"> Open now
+      </label>
+    </div>
+
+  </div>
 
   <!-- List -->
   <div id="list-container">
@@ -97,78 +188,20 @@
 
 </div>
 
-<!-- ── Filter drawer ── -->
-<div class="filter-drawer" id="filter-drawer">
-  <div class="drawer-handle"></div>
-
-  <span class="filter-label">Status</span>
-  <div class="filter-row" id="status-chips">
-    <span class="chip active" data-val="">All</span>
-    <span class="chip" data-val="want">Want to Go</span>
-    <span class="chip" data-val="been">Been There</span>
-  </div>
-
-  <span class="filter-label" style="margin-top:.875rem;display:block;">Price</span>
-  <div class="filter-row" id="price-chips">
-    <span class="chip" data-val="$">$</span>
-    <span class="chip" data-val="$$">$$</span>
-    <span class="chip" data-val="$$$">$$$</span>
-    <span class="chip" data-val="$$$$">$$$$</span>
-  </div>
-
-  <span class="filter-label" style="margin-top:.875rem;display:block;">Rating</span>
-  <div class="filter-row" id="rating-chips">
-    <span class="chip active" data-val="">Any</span>
-    <span class="chip" data-val="3">3+</span>
-    <span class="chip" data-val="4">4+</span>
-    <span class="chip" data-val="4.5">4.5+</span>
-  </div>
-
-  <span class="filter-label" style="margin-top:.875rem;display:block;">Tags</span>
-  <div class="filter-row" id="tag-chips"></div>
-
-  <div style="margin-top:.875rem;display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
-    <div>
-      <span class="filter-label" style="display:block;margin-bottom:.35rem;">Sort</span>
-      <select class="sort-select" id="sort-select">
-        <option value="saved">Date added</option>
-        <option value="rating">Rating</option>
-        <option value="name">Name A–Z</option>
-        <option value="distance">Distance</option>
-      </select>
-    </div>
-    <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
-      <input type="checkbox" id="show-closed"> Show closed
-    </label>
-  </div>
-
-  <button id="filter-apply-btn" class="btn-primary" style="margin-top:1.25rem;">Apply</button>
-</div>
-
-<!-- ── Random modal ── -->
-<div class="modal-overlay" id="random-modal" style="display:none;">
-  <div class="modal">
-    <h2>Tonight you're going to</h2>
-    <div class="picked-name" id="picked-name"></div>
-    <div class="picked-meta" id="picked-meta"></div>
-    <br>
-    <a id="picked-link" href="#" target="_blank" rel="noopener" class="btn-sm active" style="display:inline-block;padding:.45rem 1rem;">View on Yelp →</a>
-    <button class="modal-close" id="modal-close">Dismiss</button>
-  </div>
-</div>
 
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
 <script type="module">
 import {
-  loadCollection, getAllTags, filterAndSort, pickRandom,
-  starsHtml, categoryLabel, getDisplayImage, renderNotes
+  initCollection, loadCollection, getAllTags, filterAndSort,
+  starsHtml, categoryLabel, getDisplayImage, renderNotes, getTagMeta, geocodeZip
 } from './app.js'
-import { initMap, renderMarkers, highlightMarker, centerOnUser } from './map.js'
+import { initMap, renderMarkers, highlightMarker, showUserLocation } from './map.js'
 
 // ── State ─────────────────────────────────────────────────────────────────
 let filters = { tags: [], price: [], minRating: '', status: '', showClosed: false }
 let sortBy = 'saved'
+let query = ''
 let currentList = []
 let leafletMap = null
 let mapVisible = false
@@ -178,7 +211,7 @@ let mapCollapsed = false
 const darkToggle = document.getElementById('dark-toggle')
 function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-  darkToggle.textContent = dark ? 'Light' : 'Dark'
+  darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
 }
 const savedTheme = localStorage.getItem('yc_theme')
 applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -188,16 +221,69 @@ darkToggle.addEventListener('click', () => {
   localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
 })
 
-// ── Filter drawer ─────────────────────────────────────────────────────────
+// ── Nav menu ──────────────────────────────────────────────────────────────
+const navMenuBtn = document.getElementById('nav-menu-btn')
+const navMenuDropdown = document.getElementById('nav-menu-dropdown')
+navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
+document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+
+// ── Comprehensive search ──────────────────────────────────────────────────
+function matchesQuery(biz, q) {
+  if (!q) return true
+  const lower = q.toLowerCase()
+  const fields = [
+    biz.name,
+    biz.alias,
+    ...(biz.categories || []).map(c => c.title),
+    ...(biz.categories || []).map(c => c.alias),
+    biz.location?.address1,
+    biz.location?.address2,
+    biz.location?.address3,
+    biz.location?.city,
+    biz.location?.state,
+    biz.location?.zip_code,
+    biz.location?.neighborhood,
+    biz.phone,
+    biz.display_phone,
+    biz.price,
+    ...(biz.tags || []),
+    biz.notes,
+    ...(biz.transactions || []),
+  ].filter(Boolean).map(s => String(s).toLowerCase())
+  return fields.some(f => f.includes(lower))
+}
+
+// ── Filter panel ──────────────────────────────────────────────────────────
 const drawer = document.getElementById('filter-drawer')
-document.getElementById('filter-toggle-btn').addEventListener('click', e => {
+const filterToggleBtn = document.getElementById('btn-filter-toggle')
+const searchInput = document.getElementById('search-input')
+
+function openFilters() {
+  drawer.classList.add('open')
+  filterToggleBtn.classList.add('active')
+}
+function closeFilters() {
+  drawer.classList.remove('open')
+  filterToggleBtn.classList.remove('active')
+}
+
+filterToggleBtn.addEventListener('click', e => {
   e.stopPropagation()
-  drawer.classList.toggle('open')
+  drawer.classList.contains('open') ? closeFilters() : openFilters()
 })
-document.getElementById('filter-apply-btn').addEventListener('click', () => { drawer.classList.remove('open'); render() })
+
+// Clicking anywhere outside drawer + toolbar closes it
 document.addEventListener('click', e => {
-  if (drawer.classList.contains('open') && !drawer.contains(e.target) && !e.target.closest('#filter-toggle-btn'))
-    drawer.classList.remove('open')
+  if (!drawer.classList.contains('open')) return
+  if (drawer.contains(e.target) || e.target.closest('.toolbar')) return
+  closeFilters()
+})
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeFilters(); searchInput.blur() } })
+
+// Live search
+searchInput.addEventListener('input', e => {
+  query = e.target.value
+  render()
 })
 
 function setupChipGroup(id, multi, cb) {
@@ -207,14 +293,36 @@ function setupChipGroup(id, multi, cb) {
     if (multi) chip.classList.toggle('active')
     else { document.querySelectorAll(`#${id} .chip`).forEach(c => c.classList.remove('active')); chip.classList.add('active') }
     cb()
+    render()
   })
 }
 setupChipGroup('status-chips', false, () => { filters.status = document.querySelector('#status-chips .chip.active')?.dataset.val || '' })
-setupChipGroup('price-chips', true, () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
+setupChipGroup('price-chips', true,  () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
 setupChipGroup('rating-chips', false, () => { filters.minRating = parseFloat(document.querySelector('#rating-chips .chip.active')?.dataset.val) || 0 })
-setupChipGroup('tag-chips', true, () => { filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val) })
-document.getElementById('sort-select').addEventListener('change', e => { sortBy = e.target.value })
-document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked })
+setupChipGroup('tag-chips', true,   () => { filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val) })
+document.getElementById('sort-select').addEventListener('change', e => {
+  sortBy = e.target.value
+  document.getElementById('zip-wrap').style.display = sortBy === 'distance' ? 'block' : 'none'
+  render()
+})
+document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked; render() })
+document.getElementById('open-now').addEventListener('change', e => { filters.openNow = e.target.checked; render() })
+
+const zipInput = document.getElementById('zip-input')
+const zipStatus = document.getElementById('zip-status')
+async function applyZip() {
+  const zip = zipInput.value.trim()
+  if (!zip) return
+  zipStatus.textContent = '…'
+  try {
+    const { lat, lng } = await geocodeZip(zip)
+    window._userLat = lat; window._userLng = lng
+    zipStatus.textContent = '✓'
+    render()
+  } catch { zipStatus.textContent = '✗ not found' }
+}
+zipInput.addEventListener('blur', applyZip)
+zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyZip() })
 
 function refreshTagChips() {
   const active = new Set(filters.tags)
@@ -237,7 +345,8 @@ function renderCard(biz, index) {
 
   const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>' : ''
 
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(biz.name + ' ' + (biz.location?.city || ''))}`
+  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   let website = ''
   if (biz.website) { try { website = ` · <a class="card-website" href="${biz.website}" target="_blank" rel="noopener">${new URL(biz.website).hostname.replace('www.','')}</a>` } catch {} }
 
@@ -269,8 +378,14 @@ function renderCard(biz, index) {
 
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
-  currentList = filterAndSort(loadCollection(), { ...filters, sortBy })
-  document.getElementById('count-label').textContent = `${currentList.length} places`
+  const all = loadCollection().filter(b => !b.not_found)
+  const searched = query ? all.filter(b => matchesQuery(b, query)) : all
+  currentList = filterAndSort(searched, { ...filters, sortBy })
+  const total = all.length
+  document.getElementById('count-label').textContent =
+    (query || filters.status || filters.price.length || filters.minRating)
+      ? `${currentList.length} of ${total}`
+      : `${total} places`
   refreshTagChips()
 
   const cardsEl = document.getElementById('cards')
@@ -292,19 +407,6 @@ const mapToggleBtn = document.getElementById('map-panel-toggle')
 function ensureMap() {
   if (leafletMap) return
   leafletMap = initMap('map')
-  const NearMe = L.Control.extend({
-    onAdd() {
-      const btn = L.DomUtil.create('button')
-      btn.style.cssText = 'background:#fff;border:1px solid #ddd;border-radius:6px;padding:.28rem .65rem;font-size:.7rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.1);'
-      btn.textContent = '📍 Near me'
-      btn.onclick = () => navigator.geolocation.getCurrentPosition(p => {
-        window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
-        centerOnUser(p.coords.latitude, p.coords.longitude)
-      })
-      return btn
-    }
-  })
-  new NearMe({ position: 'topright' }).addTo(leafletMap)
 }
 
 function openMap() {
@@ -312,8 +414,7 @@ function openMap() {
   mapCollapsed = false
   appBody.classList.add('map-open')
   mapPanel.classList.remove('collapsed')
-  document.getElementById('btn-map-view').classList.add('active')
-  document.getElementById('btn-list-view').classList.remove('active')
+  document.getElementById('btn-map-toggle').classList.add('active')
   mapToggleBtn.textContent = '›'
   ensureMap()
   renderMarkers(currentList.map((b, i) => ({ ...b, _num: i + 1 })), id => { highlightMarker(id); scrollCardIntoView(id) })
@@ -324,21 +425,20 @@ function closeMap() {
   mapVisible = false
   appBody.classList.remove('map-open')
   mapPanel.classList.remove('collapsed')
-  document.getElementById('btn-list-view').classList.add('active')
-  document.getElementById('btn-map-view').classList.remove('active')
+  document.getElementById('btn-map-toggle').classList.remove('active')
   mapToggleBtn.textContent = '‹'
 }
 
 function toggleCollapseMap() {
-  if (!mapVisible) { openMap(); return }
   mapCollapsed = !mapCollapsed
   mapPanel.classList.toggle('collapsed', mapCollapsed)
   mapToggleBtn.textContent = mapCollapsed ? '‹' : '›'
   if (!mapCollapsed) setTimeout(() => leafletMap?.invalidateSize(), 320)
 }
 
-document.getElementById('btn-list-view').addEventListener('click', closeMap)
-document.getElementById('btn-map-view').addEventListener('click', openMap)
+document.getElementById('btn-map-toggle').addEventListener('click', () => {
+  if (mapVisible) closeMap(); else openMap()
+})
 mapToggleBtn.addEventListener('click', toggleCollapseMap)
 
 // When a map pin is clicked, highlight the corresponding card in the list
@@ -351,19 +451,6 @@ function scrollCardIntoView(id) {
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
-// ── Random picker ─────────────────────────────────────────────────────────
-document.getElementById('btn-random').addEventListener('click', () => {
-  const pick = pickRandom(currentList.filter(b => b.closed_status !== 'closed'))
-  if (!pick) { alert('No open places in your current filtered list!'); return }
-  document.getElementById('picked-name').textContent = pick.name
-  document.getElementById('picked-meta').textContent =
-    [pick.price, categoryLabel(pick), pick.location?.city].filter(Boolean).join(' · ')
-  document.getElementById('picked-link').href = pick.url
-  document.getElementById('random-modal').style.display = 'flex'
-})
-document.getElementById('modal-close').addEventListener('click', () => {
-  document.getElementById('random-modal').style.display = 'none'
-})
 
 // ── Closed banner (from cache only) ──────────────────────────────────────
 const closedCount = loadCollection().filter(b => b.closed_status === 'closed').length
@@ -375,9 +462,11 @@ if (closedCount) {
 // ── Geolocation ───────────────────────────────────────────────────────────
 navigator.geolocation?.getCurrentPosition(p => {
   window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
+  if (leafletMap) showUserLocation(p.coords.latitude, p.coords.longitude)
 })
 
 window.addEventListener('collection-updated', render)
+await initCollection()
 render()
 </script>
 </body>

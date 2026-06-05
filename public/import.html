@@ -10,10 +10,15 @@
 
 <nav class="nav">
   <span class="nav-logo">Yelp Collections+</span>
-  <div class="nav-links">
+  <div class="nav-links" id="nav-links">
     <a href="index.html" class="nav-link">My List</a>
-    <a href="import.html" class="nav-link active">Import</a>
-    <a href="discover.html" class="nav-link">Discover</a>
+    <a href="admin.html" class="nav-link">Admin</a>
+  </div>
+  <div class="nav-menu-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">⋮</button>
+    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+    </div>
   </div>
 </nav>
 
@@ -63,7 +68,7 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
     </div>
 
     <p style="font-size:.85rem;color:var(--gray);margin-bottom:1rem;">
-      <strong>Step 2:</strong> Paste the copied URLs below. We'll look each one up via the Yelp API (official, ToS-compliant). Free tier allows 300 lookups/day — if you have more, the import saves progress and you can resume tomorrow.
+      <strong>Step 2:</strong> Paste the copied URLs below. We'll look each one up via the Yelp API (official, ToS-compliant). Free tier allows 500 lookups/day — if you have more, the import saves progress and you can resume tomorrow.
     </p>
 
     <label class="filter-label" style="display:block;margin-bottom:.4rem;">Collection name (used as a tag)</label>
@@ -100,12 +105,49 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
     <div class="progress-list" id="progress-log" style="max-height:300px;overflow-y:auto;"></div>
   </div>
 
+  <!-- Import report (shown after import completes) -->
+  <div class="import-box" id="report-box" style="display:none;margin-top:.75rem;">
+    <h3>Import report</h3>
+    <div id="report-summary" style="display:flex;gap:.75rem;flex-wrap:wrap;margin:.75rem 0;"></div>
+    <div id="report-problems" style="font-size:.82rem;"></div>
+    <a href="index.html" class="btn-primary" style="display:block;text-align:center;margin-top:1rem;">Go to my list →</a>
+  </div>
+
+  <!-- Diff tool (always available) -->
+  <div class="import-box" id="diff-box" style="margin-top:.75rem;">
+    <h3>Check what's missing</h3>
+    <p>Paste the same URL list you imported. We'll compare it against your saved collection and show what's missing or flagged.</p>
+    <textarea id="diff-ids" class="import-input" rows="6" placeholder="https://www.yelp.com/biz/some-place&#10;https://www.yelp.com/biz/another-place&#10;…"></textarea>
+    <button id="btn-run-diff" class="btn-primary">Check diff</button>
+    <div id="diff-results" style="margin-top:.75rem;font-size:.82rem;display:none;"></div>
+  </div>
+
 </div>
 
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
 <script type="module">
-import { saveBusiness, loadCollection } from './app.js'
+import { initCollection, saveBusiness, saveStubBusiness, loadCollection } from './app.js'
+
+// ── Dark mode + nav menu ─────────────────────────────────────────────────────
+;(function() {
+  const darkToggle = document.getElementById('dark-toggle')
+  function applyTheme(dark) {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+    darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
+  }
+  const savedTheme = localStorage.getItem('yc_theme')
+  applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+  darkToggle.addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    applyTheme(!isDark)
+    localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+  })
+  const navMenuBtn = document.getElementById('nav-menu-btn')
+  const navMenuDropdown = document.getElementById('nav-menu-dropdown')
+  navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
+  document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+})()
 
 // ── Queue persistence ────────────────────────────────────────────────────────
 // Saves remaining URLs so you can close the tab and resume later
@@ -136,9 +178,10 @@ function addLog(text, type = '') {
 function extractBizId(input) {
   input = input.trim()
   if (!input) return null
-  const m = input.match(/yelp\.com\/biz\/([A-Za-z0-9_-]+)/)
-  if (m) return m[1]
-  if (/^[A-Za-z0-9_-]+$/.test(input)) return input
+  try { input = decodeURIComponent(input) } catch {}
+  const m = input.match(/yelp\.com\/biz\/([^/?#\s]+)/)
+  if (m) return m[1].replace(/\/$/, '')
+  if (!/[\s/]/.test(input) && input.length > 0) return input
   return null
 }
 
@@ -154,7 +197,8 @@ document.querySelectorAll('#snippet-box, #scroll-snippet-box').forEach(pre => {
   })
 })
 
-// ── Check for resumable queue on load ────────────────────────────────────────
+// ── Load collection into memory then check for resumable queue ───────────────
+await initCollection()
 const existing = loadQueue()
 if (existing && existing.remaining.length > 0) {
   resumeBox.style.display = 'block'
@@ -211,10 +255,13 @@ document.getElementById('btn-manual-import').addEventListener('click', () => {
 
 async function runImport(ids, collectionName, total, alreadyDone) {
   progressBox.style.display = 'block'
+  document.getElementById('report-box').style.display = 'none'
   log.innerHTML = ''
 
   let imported = alreadyDone
-  let failed = 0
+  const successList = []   // { id, name }
+  const notFoundList = []  // id — 404 from Yelp
+  const failedList = []    // id — network/API error after retries
   const remaining = [...ids]
 
   addLog(`Importing into "${collectionName}" — ${remaining.length} remaining`)
@@ -223,20 +270,24 @@ async function runImport(ids, collectionName, total, alreadyDone) {
     const id = remaining[i]
     addLog(`Fetching ${id}… (${imported + 1}/${total})`)
 
-    let success = false
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
 
         if (res.status === 429) {
-          // Yelp rate limited us — read their retryAfter or default to 60s
           const body = await res.json().catch(() => ({}))
           const wait = parseInt(body.retryAfter || '60', 10)
           addLog(`Rate limited by Yelp — waiting ${wait}s then resuming… (attempt ${attempt + 1})`, 'warn')
-          // Save progress before waiting in case user closes tab
           saveQueue({ remaining: remaining.slice(i), collection: collectionName, total })
           await countdown(wait)
           continue
+        }
+
+        if (res.status === 404) {
+          saveStubBusiness(id, collectionName)
+          notFoundList.push(id)
+          addLog(`Not found on Yelp: ${id}`, 'warn')
+          break
         }
 
         if (!res.ok) {
@@ -246,14 +297,15 @@ async function runImport(ids, collectionName, total, alreadyDone) {
 
         const biz = await res.json()
         saveBusiness(biz, [], collectionName)
+        successList.push({ id, name: biz.name })
         addLog(`${biz.name}`, 'done')
         imported++
-        success = true
         break
       } catch (err) {
         if (attempt === 4) {
+          saveStubBusiness(id, collectionName)
+          failedList.push({ id, reason: err.message })
           addLog(`Failed: ${id} — ${err.message}`, 'err')
-          failed++
         } else {
           const backoff = (attempt + 1) * 3
           addLog(`Retrying ${id} in ${backoff}s… (${err.message})`, 'warn')
@@ -263,22 +315,46 @@ async function runImport(ids, collectionName, total, alreadyDone) {
     }
 
     updateProgress(imported, total)
-    // Save after every business so closing tab is safe
     saveQueue({ remaining: remaining.slice(i + 1), collection: collectionName, total })
 
-    // Small courtesy delay — 500ms between requests
-    if (i < remaining.length - 1) {
-      await new Promise(r => setTimeout(r, 500))
-    }
+    if (i < remaining.length - 1) await new Promise(r => setTimeout(r, 500))
   }
 
   clearQueue()
-  addLog(`Import complete! ${imported} saved, ${failed} failed.`, 'done')
+  addLog(`Done — ${imported} saved, ${notFoundList.length} not found, ${failedList.length} failed.`, 'done')
+  showReport(successList, notFoundList, failedList)
+}
 
-  if (imported > 0) {
-    addLog('Redirecting to your list…', '')
-    setTimeout(() => { window.location.href = 'index.html' }, 3000)
+function showReport(successList, notFoundList, failedList) {
+  const box = document.getElementById('report-box')
+  box.style.display = 'block'
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+  document.getElementById('report-summary').innerHTML = [
+    `<span style="background:#d3f9d8;color:#2f9e44;padding:.3rem .75rem;border-radius:20px;font-weight:700;">✓ ${successList.length} imported</span>`,
+    notFoundList.length ? `<span style="background:#fff3cd;color:#856404;padding:.3rem .75rem;border-radius:20px;font-weight:700;">⚠ ${notFoundList.length} not found on Yelp</span>` : '',
+    failedList.length ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.3rem .75px;border-radius:20px;font-weight:700;">✗ ${failedList.length} failed</span>` : '',
+  ].filter(Boolean).join('')
+
+  const problems = [...notFoundList.map(id => ({ id, reason: 'Not found on Yelp (404) — may be closed or URL changed' })),
+                    ...failedList.map(({ id, reason }) => ({ id, reason }))]
+
+  if (!problems.length) {
+    document.getElementById('report-problems').innerHTML = '<p style="color:var(--green);">All businesses imported successfully.</p>'
+    return
   }
+
+  document.getElementById('report-problems').innerHTML = `
+    <p style="font-weight:600;margin-bottom:.5rem;color:var(--text);">${problems.length} business${problems.length !== 1 ? 'es' : ''} need attention:</p>
+    <div style="display:flex;flex-direction:column;gap:.35rem;">
+      ${problems.map(({ id, reason }) => `
+        <div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem .6rem;background:var(--gray-light);border-radius:6px;">
+          <div style="flex:1;min-width:0;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;word-break:break-all;">${id}</a>
+            <div style="color:var(--text-muted);font-size:.76rem;margin-top:.1rem;">${reason}</div>
+          </div>
+        </div>`).join('')}
+    </div>`
 }
 
 // Live countdown so the user sees it ticking down, not a frozen screen
@@ -292,6 +368,53 @@ async function countdown(seconds) {
   }
   div.textContent = '⏸ Resuming now…'
 }
+
+// ── Diff tool ────────────────────────────────────────────────────────────────
+document.getElementById('btn-run-diff').addEventListener('click', () => {
+  const raw = document.getElementById('diff-ids').value.trim()
+  if (!raw) { alert('Paste your URL list first.'); return }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean)
+  const ids = [...new Set(lines.map(extractBizId).filter(Boolean))]
+  if (!ids.length) { alert('No valid Yelp URLs found.'); return }
+
+  const collection = loadCollection()
+  const byId = Object.fromEntries(collection.map(b => [b.id, b]))
+
+  const present = [], stubbed = [], missing = []
+  for (const id of ids) {
+    const biz = byId[id]
+    if (!biz) missing.push(id)
+    else if (biz.not_found) stubbed.push(id)
+    else present.push({ id, name: biz.name })
+  }
+
+  const resultsEl = document.getElementById('diff-results')
+  resultsEl.style.display = 'block'
+  resultsEl.innerHTML = `
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;">
+      <span style="background:#d3f9d8;color:#2f9e44;padding:.28rem .7rem;border-radius:20px;font-weight:700;">✓ ${present.length} in your list</span>
+      ${stubbed.length ? `<span style="background:#fff3cd;color:#856404;padding:.28rem .7rem;border-radius:20px;font-weight:700;">⚠ ${stubbed.length} flagged (not found)</span>` : ''}
+      ${missing.length ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.28rem .7rem;border-radius:20px;font-weight:700;">✗ ${missing.length} missing</span>` : ''}
+    </div>
+    ${missing.length ? `
+      <p style="font-weight:600;margin-bottom:.4rem;">Missing from your collection:</p>
+      <div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.75rem;">
+        ${missing.map(id => `
+          <div style="padding:.35rem .6rem;background:var(--gray-light);border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;word-break:break-all;">${id}</a>
+            <span style="font-size:.72rem;color:var(--text-muted);white-space:nowrap;">check on Yelp →</span>
+          </div>`).join('')}
+      </div>` : ''}
+    ${stubbed.length ? `
+      <p style="font-weight:600;margin-bottom:.4rem;">Flagged as not found (saved as placeholder):</p>
+      <div style="display:flex;flex-direction:column;gap:.3rem;">
+        ${stubbed.map(id => `
+          <div style="padding:.35rem .6rem;background:#fff9db;border-radius:6px;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;">${id}</a>
+          </div>`).join('')}
+      </div>` : ''}`
+})
 
 function updateProgress(done, total) {
   const pct = Math.round((done / total) * 100)
