@@ -559,6 +559,43 @@ alert(links.length + ' URLs copied!');</code></div>
     <details>
       <summary class="sync-section-header">🔄 Sync Data</summary>
       <div id="tab-sync" class="admin-tab-panel" style="display:block!important;padding:0;">
+        <div class="admin-section">
+          <h2>Sync</h2>
+          <p class="section-desc">Reconcile your collection against Yelp: check for missing entries or fetch updated business data.</p>
+
+          <!-- Sub-mode toggle -->
+          <div style="display:flex;gap:.35rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+            <button class="btn-sm sync-mode-btn active" data-mode="diff" style="font-size:.78rem;">📋 List Diff</button>
+            <button class="btn-sm sync-mode-btn" data-mode="freshness" style="font-size:.78rem;">🔄 Data Freshness</button>
+          </div>
+
+          <!-- ── Mode: List Diff ── -->
+          <div id="sync-mode-diff">
+            <p class="section-desc" style="margin-bottom:.75rem;">Paste Yelp business URLs to see what's missing from your collection.</p>
+            <textarea id="sync-diff-ids" class="import-input" rows="6"
+              placeholder="https://www.yelp.com/biz/some-place&#10;https://www.yelp.com/biz/another-place&#10;…"></textarea>
+            <button id="btn-sync-diff" class="btn-primary" style="margin-top:.5rem;">Check diff</button>
+            <div id="sync-diff-results" style="margin-top:.75rem;font-size:.82rem;"></div>
+          </div>
+
+          <!-- ── Mode: Data Freshness ── -->
+          <div id="sync-mode-freshness" style="display:none;">
+            <div class="api-notice" style="margin-bottom:.75rem;">⚠ Uses 1 Yelp API call per business. Review your quota before running.</div>
+            <div id="sync-quota-info" style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem;"></div>
+            <button id="btn-sync-all" class="btn-primary" style="max-width:180px;margin-bottom:1rem;">Check all businesses</button>
+            <div id="sync-progress" style="display:none;margin-bottom:.75rem;">
+              <div class="progress-bar-wrap"><div class="progress-bar-fill" id="sync-bar"></div></div>
+              <p id="sync-progress-msg" style="font-size:.8rem;color:var(--text-muted);margin-top:.35rem;"></p>
+            </div>
+            <div id="sync-results"></div>
+          </div>
+        </div>
+      </div><!-- /tab-sync -->
+    </details>
+
+    </div><!-- /tab-import-sync -->
+
+    <!-- ══ Tab: Tags ══ -->
     <div id="tab-tags" class="admin-tab-panel">
       <div class="admin-section">
         <h2>Tag Manager</h2>
@@ -597,44 +634,6 @@ alert(links.length + ' URLs copied!');</code></div>
         </div>
       </div>
     </div>
-
-    <!-- ══ Tab: Sync ══ -->
-    <div id="tab-sync" class="admin-tab-panel">
-      <div class="admin-section">
-        <h2>Sync</h2>
-        <p class="section-desc">Reconcile your collection against Yelp: check for missing entries or fetch updated business data.</p>
-
-        <!-- Sub-mode toggle -->
-        <div style="display:flex;gap:.35rem;margin-bottom:1.25rem;flex-wrap:wrap;">
-          <button class="btn-sm sync-mode-btn active" data-mode="diff" style="font-size:.78rem;">📋 List Diff</button>
-          <button class="btn-sm sync-mode-btn" data-mode="freshness" style="font-size:.78rem;">🔄 Data Freshness</button>
-        </div>
-
-        <!-- ── Mode: List Diff ── -->
-        <div id="sync-mode-diff">
-          <p class="section-desc" style="margin-bottom:.75rem;">Paste Yelp business URLs to see what's missing from your collection.</p>
-          <textarea id="sync-diff-ids" class="import-input" rows="6"
-            placeholder="https://www.yelp.com/biz/some-place&#10;https://www.yelp.com/biz/another-place&#10;…"></textarea>
-          <button id="btn-sync-diff" class="btn-primary" style="margin-top:.5rem;">Check diff</button>
-          <div id="sync-diff-results" style="margin-top:.75rem;font-size:.82rem;"></div>
-        </div>
-
-        <!-- ── Mode: Data Freshness ── -->
-        <div id="sync-mode-freshness" style="display:none;">
-          <div class="api-notice" style="margin-bottom:.75rem;">⚠ Uses 1 Yelp API call per business. Review your quota before running.</div>
-          <div id="sync-quota-info" style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem;"></div>
-          <button id="btn-sync-all" class="btn-primary" style="max-width:180px;margin-bottom:1rem;">Check all businesses</button>
-          <div id="sync-progress" style="display:none;margin-bottom:.75rem;">
-            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="sync-bar"></div></div>
-            <p id="sync-progress-msg" style="font-size:.8rem;color:var(--text-muted);margin-top:.35rem;"></p>
-          </div>
-          <div id="sync-results"></div>
-        </div>
-      </div>
-      </div><!-- /tab-sync -->
-    </details>
-
-    </div><!-- /tab-import-sync -->
 
     <!-- ══ Tab: Connections ══ -->
     <div id="tab-connections" class="admin-tab-panel">
