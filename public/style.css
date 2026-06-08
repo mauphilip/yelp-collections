@@ -507,6 +507,7 @@ a:hover { text-decoration: underline; }
 }
 .status-badge.want { background: var(--gray-light); color: var(--text-subtle); border: 1px solid var(--border); }
 .status-badge.been { background: var(--blue); color: #fff; }
+.status-badge.skip { background: var(--gray-light); color: var(--text-muted); border: 1px solid var(--border); text-decoration: line-through; }
 
 /* Closed / warn */
 .closed-badge, .warn-badge {

@@ -1,12 +1,13 @@
 // Leaflet map — CartoDB Positron tiles (clean, minimal, no API key needed)
 
-let map, markersLayer, markerMap = {}, userMarker = null
+let map, markersLayer, markerMap = {}, userMarker = null, _lastBounds = []
 
 export function initMap(containerId) {
   map = L.map(containerId, {
     zoomControl: false,
     center: [34.02, -118.35],
     zoom: 10,
+    doubleClickZoom: false,
   })
 
   // CartoDB Voyager — warm streets, green parks, clean labels. Closest free look to Google Maps.
@@ -47,6 +48,22 @@ export function initMap(containerId) {
   })
   new NearMe().addTo(map)
 
+  // Reset/fit-all button
+  const ResetView = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const btn = L.DomUtil.create('button', 'reset-view-btn')
+      btn.textContent = '⤢'
+      btn.title = 'Fit all markers'
+      L.DomEvent.disableClickPropagation(btn)
+      L.DomEvent.on(btn, 'click', () => {
+        if (_lastBounds.length) map.fitBounds(_lastBounds, { padding: [56, 56], maxZoom: 12 })
+      })
+      return btn
+    },
+  })
+  new ResetView().addTo(map)
+
   return map
 }
 
@@ -72,13 +89,19 @@ export function renderMarkers(businesses, onMarkerClick) {
       iconAnchor: [size / 2, size / 2],
     })
 
+    const cat = biz.categories?.[0]?.title || ''
+    const popup = L.popup({ maxWidth: 200, autoPan: false, closeButton: false })
+      .setContent(`<b style="font-family:Inter,sans-serif;font-size:.82rem">${biz.name}</b><br><span style="font-size:.75rem;color:#666">${biz.rating}★${cat ? ' · ' + cat : ''}</span>`)
+
     const marker = L.marker([lat, lng], { icon })
+      .bindPopup(popup)
       .on('click', () => onMarkerClick(biz.id))
     markersLayer.addLayer(marker)
     markerMap[biz.id] = { marker, num }
     bounds.push([lat, lng])
   }
 
+  _lastBounds = bounds
   if (bounds.length) map.fitBounds(bounds, { padding: [56, 56], maxZoom: 12 })
 }
 
@@ -88,6 +111,12 @@ export function highlightMarker(id) {
     if (!el) continue
     el.querySelector('.num-pin')?.classList.toggle('highlighted', mid === id)
   }
+}
+
+export function panToMarker(id) {
+  const entry = markerMap[id]
+  if (!entry) return
+  map.panTo(entry.marker.getLatLng(), { animate: true })
 }
 
 export function showUserLocation(lat, lng) {

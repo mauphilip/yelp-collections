@@ -3,480 +3,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My Collections</title>
+  <title>Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    /* Square numbered pins — Yelp blue, white number */
-    .num-pin {
-      border-radius: 6px;
-      background: #0047FF;
-      color: #fff;
-      font: 700 11px/1 'Inter', sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      box-shadow: 0 2px 6px rgba(0,71,255,.4), 0 0 0 2px #fff;
-      cursor: pointer;
-      transition: transform .15s;
-      letter-spacing: -.02em;
-    }
-    .num-pin:hover { transform: scale(1.12); }
-    .num-pin.highlighted {
-      background: #0a0a0a !important;
-      transform: scale(1.2);
-      box-shadow: 0 2px 8px rgba(0,0,0,.4), 0 0 0 2px #fff;
-    }
-    .num-pin.closed { background: #f03e3e; }
-    .near-me-btn {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: .3rem .7rem;
-      font-size: .72rem;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: Inter, sans-serif;
-      box-shadow: 0 1px 4px rgba(0,0,0,.12);
-      margin-top: 8px;
-    }
-    .near-me-btn:hover { background: #f5f5f5; }
-    /* You are here — pulsing blue dot */
-    .user-dot {
-      width: 16px; height: 16px;
-      border-radius: 50%;
-      background: #e03131;
-      border: 2.5px solid #fff;
-      box-shadow: 0 2px 8px rgba(224,49,49,.5);
-      position: relative;
-    }
-    .user-dot::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 36px; height: 36px;
-      border-radius: 50%;
-      background: rgba(224,49,49,.18);
-      animation: user-pulse 2s ease-out infinite;
-      transform: translate(-50%,-50%) scale(0.3);
-    }
-    @keyframes user-pulse {
-      0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
-      100% { transform: translate(-50%,-50%) scale(1);   opacity: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #222;
+      --text: #f0f0f0;
+      --text-muted: #666;
+      --text-subtle: #333;
+      --accent: #4d7aff;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Card highlighted when map pin clicked */
-    .card.map-highlighted {
-      outline: 2.5px solid #0047FF;
-      outline-offset: -2px;
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* Login button — top right */
+    .login-link {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.5rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .35rem .9rem;
+      letter-spacing: .01em;
+      transition: color .2s, border-color .2s;
+      z-index: 10;
+    }
+    .login-link:hover { color: var(--text); border-color: #444; text-decoration: none; }
+
+    /* Centered content */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100dvh;
+      text-align: center;
+      padding: 2rem;
+      gap: 1.25rem;
+      position: relative;
+    }
+
+    .hero-eyebrow {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 10vw, 7rem);
+      font-weight: 900;
+      letter-spacing: -.05em;
+      line-height: 1;
+      color: var(--text);
+      /* subtle shimmer effect */
+      background: linear-gradient(135deg, #fff 0%, #888 60%, #fff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 6s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+
+    .hero-sub {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: -.01em;
+      max-width: 320px;
+      line-height: 1.6;
+    }
+
+    /* Thin decorative line */
+    .hero-rule {
+      width: 32px;
+      height: 1px;
+      background: var(--text-subtle);
+      border: none;
+    }
+
+    /* Construction badge */
+    .under-construction {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .8rem;
+      margin-top: .25rem;
+    }
+    .under-construction::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #f59f00;
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--text-subtle) 1px, transparent 1px),
+        linear-gradient(90deg, var(--text-subtle) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: .07;
+      pointer-events: none;
+    }
+
+    /* Radial fade to make center pop */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, var(--bg) 100%);
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
+  <a href="login.html" class="login-link">Login →</a>
 
-<nav class="nav">
-  <span class="nav-logo">Collections</span>
-  <div class="nav-menu-wrap">
-    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">☰</button>
-    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
-      <a class="nav-menu-item" href="index.html">My List</a>
-      <a class="nav-menu-item" href="admin.html">Admin</a>
-      <div class="nav-menu-divider"></div>
-      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
-    </div>
-  </div>
-</nav>
-
-<!-- ── Toolbar ── -->
-<div class="toolbar" id="toolbar">
-  <div class="search-bar-wrap">
-    <div class="search-bar">
-      <svg class="search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="4.5"/><line x1="9.5" y1="9.5" x2="13" y2="13"/></svg>
-      <input type="search" id="search-input" placeholder="Search name, cuisine, neighborhood, notes, tags…" autocomplete="off">
-      <button id="btn-filter-toggle" class="search-filter-btn">
-        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="3" x2="12" y2="3"/><line x1="3" y1="6.5" x2="10" y2="6.5"/><line x1="5" y1="10" x2="8" y2="10"/></svg>
-        Filters
-      </button>
-    </div>
-  </div>
-  <div class="toolbar-right">
-    <span class="toolbar-count" id="count-label"></span>
-    <button class="view-btn" id="btn-map-toggle">Map</button>
-  </div>
-</div>
-
-<div id="closed-banner" class="banner banner-warn" style="display:none;">
-  <span id="closed-msg"></span>
-</div>
-
-<!-- ── App body: list + collapsible map panel ── -->
-<div class="app-body" id="app-body">
-
-  <!-- Filter drawer — anchored to top of list pane, drops down -->
-  <div class="filter-drawer" id="filter-drawer">
-    <span class="filter-label">Status</span>
-    <div class="filter-row" id="status-chips">
-      <span class="chip active" data-val="">All</span>
-      <span class="chip" data-val="want">Want to Go</span>
-      <span class="chip" data-val="been">Been There</span>
-    </div>
-
-    <span class="filter-label" style="margin-top:.875rem;display:block;">Price</span>
-    <div class="filter-row" id="price-chips">
-      <span class="chip" data-val="$">$</span>
-      <span class="chip" data-val="$$">$$</span>
-      <span class="chip" data-val="$$$">$$$</span>
-      <span class="chip" data-val="$$$$">$$$$</span>
-    </div>
-
-    <span class="filter-label" style="margin-top:.875rem;display:block;">Rating</span>
-    <div class="filter-row" id="rating-chips">
-      <span class="chip active" data-val="">Any</span>
-      <span class="chip" data-val="3">3+</span>
-      <span class="chip" data-val="4">4+</span>
-      <span class="chip" data-val="4.5">4.5+</span>
-    </div>
-
-    <span class="filter-label" style="margin-top:.875rem;display:block;">Tags</span>
-    <div class="filter-row" id="tag-chips"></div>
-
-    <div style="margin-top:.875rem;display:flex;align-items:flex-end;gap:1rem;flex-wrap:wrap;">
-      <div>
-        <span class="filter-label" style="display:block;margin-bottom:.35rem;">Sort</span>
-        <select class="sort-select" id="sort-select">
-          <option value="saved">Date added</option>
-          <option value="rating">Rating</option>
-          <option value="name">Name A–Z</option>
-          <option value="distance">Distance</option>
-        </select>
-      </div>
-      <div id="zip-wrap" style="display:none;">
-        <span class="filter-label" style="display:block;margin-bottom:.35rem;">or enter ZIP</span>
-        <input type="text" id="zip-input" placeholder="90210" maxlength="10" style="width:80px;padding:.3rem .5rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:.82rem;font-family:var(--font);background:var(--bg);color:var(--text);">
-        <span id="zip-status" style="font-size:.72rem;color:var(--text-subtle);margin-left:.3rem;"></span>
-      </div>
-      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
-        <input type="checkbox" id="show-closed"> Show closed
-      </label>
-      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
-        <input type="checkbox" id="open-now"> Open now
-      </label>
-      <label style="font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.4rem;color:var(--text-muted);padding-bottom:.1rem;">
-        <input type="checkbox" id="has-tags"> Has tag(s)
-      </label>
-    </div>
-
-  </div>
-
-  <!-- List -->
-  <div id="list-container">
-    <div class="cards" id="cards"></div>
-    <div class="empty" id="empty-state" style="display:none;">
-      <h2>Nothing here yet</h2>
-      <p>Head to <a href="admin.html">Admin</a> to import your Yelp collections.</p>
-    </div>
-  </div>
-
-  <!-- Map panel — half page, no list below -->
-  <div class="map-panel" id="map-panel">
-    <button class="map-panel-toggle" id="map-panel-toggle" title="Collapse map">‹</button>
-    <div id="map"></div>
-  </div>
-
-</div>
-
-
-<footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
-
-<script type="module">
-import {
-  initCollection, loadCollection, getAllTags, filterAndSort,
-  starsHtml, categoryLabel, getDisplayImage, renderNotes, getTagMeta, geocodeZip
-} from './app.js'
-import { initMap, renderMarkers, highlightMarker, showUserLocation } from './map.js'
-
-// ── State ─────────────────────────────────────────────────────────────────
-let filters = { tags: [], price: [], minRating: '', status: '', showClosed: false }
-let sortBy = 'saved'
-let query = ''
-let currentList = []
-let leafletMap = null
-let mapVisible = false
-let mapCollapsed = false
-
-// ── Dark mode ─────────────────────────────────────────────────────────────
-const darkToggle = document.getElementById('dark-toggle')
-function applyTheme(dark) {
-  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-  darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
-}
-const savedTheme = localStorage.getItem('yc_theme')
-applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
-darkToggle.addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
-  applyTheme(!isDark)
-  localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
-})
-
-// ── Nav menu ──────────────────────────────────────────────────────────────
-const navMenuBtn = document.getElementById('nav-menu-btn')
-const navMenuDropdown = document.getElementById('nav-menu-dropdown')
-navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
-document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
-
-// ── Comprehensive search ──────────────────────────────────────────────────
-function matchesQuery(biz, q) {
-  if (!q) return true
-  const lower = q.toLowerCase()
-  const fields = [
-    biz.name,
-    biz.alias,
-    ...(biz.categories || []).map(c => c.title),
-    ...(biz.categories || []).map(c => c.alias),
-    biz.location?.address1,
-    biz.location?.address2,
-    biz.location?.address3,
-    biz.location?.city,
-    biz.location?.state,
-    biz.location?.zip_code,
-    biz.location?.neighborhood,
-    biz.phone,
-    biz.display_phone,
-    biz.price,
-    ...(biz.tags || []),
-    biz.notes,
-    ...(biz.transactions || []),
-  ].filter(Boolean).map(s => String(s).toLowerCase())
-  return fields.some(f => f.includes(lower))
-}
-
-// ── Filter panel ──────────────────────────────────────────────────────────
-const drawer = document.getElementById('filter-drawer')
-const filterToggleBtn = document.getElementById('btn-filter-toggle')
-const searchInput = document.getElementById('search-input')
-
-function openFilters() {
-  drawer.classList.add('open')
-  filterToggleBtn.classList.add('active')
-}
-function closeFilters() {
-  drawer.classList.remove('open')
-  filterToggleBtn.classList.remove('active')
-}
-
-filterToggleBtn.addEventListener('click', e => {
-  e.stopPropagation()
-  drawer.classList.contains('open') ? closeFilters() : openFilters()
-})
-
-// Clicking anywhere outside drawer + toolbar closes it
-document.addEventListener('click', e => {
-  if (!drawer.classList.contains('open')) return
-  if (drawer.contains(e.target) || e.target.closest('.toolbar')) return
-  closeFilters()
-})
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeFilters(); searchInput.blur() } })
-
-// Live search
-searchInput.addEventListener('input', e => {
-  query = e.target.value
-  render()
-})
-
-function setupChipGroup(id, multi, cb) {
-  document.getElementById(id).addEventListener('click', e => {
-    const chip = e.target.closest('.chip')
-    if (!chip) return
-    if (multi) chip.classList.toggle('active')
-    else { document.querySelectorAll(`#${id} .chip`).forEach(c => c.classList.remove('active')); chip.classList.add('active') }
-    cb()
-    render()
-  })
-}
-setupChipGroup('status-chips', false, () => { filters.status = document.querySelector('#status-chips .chip.active')?.dataset.val || '' })
-setupChipGroup('price-chips', true,  () => { filters.price = [...document.querySelectorAll('#price-chips .chip.active')].map(c => c.dataset.val) })
-setupChipGroup('rating-chips', false, () => { filters.minRating = parseFloat(document.querySelector('#rating-chips .chip.active')?.dataset.val) || 0 })
-setupChipGroup('tag-chips', true,   () => { filters.tags = [...document.querySelectorAll('#tag-chips .chip.active')].map(c => c.dataset.val) })
-document.getElementById('sort-select').addEventListener('change', e => {
-  sortBy = e.target.value
-  document.getElementById('zip-wrap').style.display = sortBy === 'distance' ? 'block' : 'none'
-  render()
-})
-document.getElementById('show-closed').addEventListener('change', e => { filters.showClosed = e.target.checked; render() })
-document.getElementById('open-now').addEventListener('change', e => { filters.openNow = e.target.checked; render() })
-document.getElementById('has-tags').addEventListener('change', e => { filters.hasTags = e.target.checked; render() })
-
-const zipInput = document.getElementById('zip-input')
-const zipStatus = document.getElementById('zip-status')
-async function applyZip() {
-  const zip = zipInput.value.trim()
-  if (!zip) return
-  zipStatus.textContent = '…'
-  try {
-    const { lat, lng } = await geocodeZip(zip)
-    window._userLat = lat; window._userLng = lng
-    zipStatus.textContent = '✓'
-    render()
-  } catch { zipStatus.textContent = '✗ not found' }
-}
-zipInput.addEventListener('blur', applyZip)
-zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyZip() })
-
-function refreshTagChips() {
-  const active = new Set(filters.tags)
-  document.getElementById('tag-chips').innerHTML = getAllTags().map(t =>
-    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
-  ).join('')
-}
-
-// ── Card rendering ────────────────────────────────────────────────────────
-function renderCard(biz, index) {
-  const num = String(index + 1)
-  const closed = biz.closed_status === 'closed'
-  const imgSrc = getDisplayImage(biz)
-  const img = imgSrc
-    ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
-    : '<div class="card-img-placeholder"></div>'
-
-  const closedBadge = closed ? '<span class="closed-badge">Closed</span>'
-    : biz.closed_status === 'unknown' ? '<span class="warn-badge">Check</span>' : ''
-
-  const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>' : ''
-
-  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
-  let website = ''
-  if (biz.website) { try { website = ` · <a class="card-website" href="${biz.website}" target="_blank" rel="noopener">${new URL(biz.website).hostname.replace('www.','')}</a>` } catch {} }
-
-  const notes = renderNotes(biz.notes)
-  const tagMeta = getTagMeta()
-  const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
-    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${t}</span>`
-  }).join('')
-
-  return `
-    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}" data-num="${index + 1}">
-      <span class="card-num">${num}</span>
-      ${closedBadge}
-      <div class="card-img-wrap">${img}</div>
-      <div class="card-body">
-        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
-        <div class="card-meta">
-          <span class="stars">${starsHtml(biz.rating).replace(/<[^>]+>/g,'')}</span>
-          <span>${biz.review_count}</span>
-          ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
-          <span class="cat">${categoryLabel(biz)}</span>
-        </div>
-        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''}${website}</div>` : ''}
-        ${tags ? `<div class="card-tags" style="margin-top:.35rem;">${tags}</div>` : ''}
-        ${statusBadge ? `<div style="margin-top:.25rem;">${statusBadge}</div>` : ''}
-        ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
-      </div>
-      <div class="card-actions">
-        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
-        <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
-      </div>
-    </div>`
-}
-
-// ── Render ────────────────────────────────────────────────────────────────
-function render() {
-  const all = loadCollection().filter(b => !b.not_found)
-  const searched = query ? all.filter(b => matchesQuery(b, query)) : all
-  currentList = filterAndSort(searched, { ...filters, sortBy })
-  const total = all.length
-  document.getElementById('count-label').textContent =
-    (query || filters.status || filters.price.length || filters.minRating)
-      ? `${currentList.length} of ${total}`
-      : `${total} places`
-  refreshTagChips()
-
-  const cardsEl = document.getElementById('cards')
-  const emptyEl = document.getElementById('empty-state')
-  if (!currentList.length) { cardsEl.innerHTML = ''; emptyEl.style.display = 'block' }
-  else { emptyEl.style.display = 'none'; cardsEl.innerHTML = currentList.map((b, i) => renderCard(b, i)).join('') }
-
-  if (mapVisible && leafletMap) {
-    // Pass numbers (1-based index) along with businesses
-    renderMarkers(currentList.map((b, i) => ({ ...b, _num: i + 1 })), id => { highlightMarker(id); scrollCardIntoView(id) })
-  }
-}
-
-// ── Map panel ─────────────────────────────────────────────────────────────
-const appBody = document.getElementById('app-body')
-const mapPanel = document.getElementById('map-panel')
-const mapToggleBtn = document.getElementById('map-panel-toggle')
-
-function ensureMap() {
-  if (leafletMap) return
-  leafletMap = initMap('map')
-}
-
-function openMap() {
-  mapVisible = true
-  mapCollapsed = false
-  appBody.classList.add('map-open')
-  mapPanel.classList.remove('collapsed')
-  document.getElementById('btn-map-toggle').classList.add('active')
-  mapToggleBtn.textContent = '›'
-  ensureMap()
-  renderMarkers(currentList.map((b, i) => ({ ...b, _num: i + 1 })), id => { highlightMarker(id); scrollCardIntoView(id) })
-  setTimeout(() => leafletMap.invalidateSize(), 320)
-}
-
-function closeMap() {
-  mapVisible = false
-  appBody.classList.remove('map-open')
-  mapPanel.classList.remove('collapsed')
-  document.getElementById('btn-map-toggle').classList.remove('active')
-  mapToggleBtn.textContent = '‹'
-}
-
-function toggleCollapseMap() {
-  mapCollapsed = !mapCollapsed
-  mapPanel.classList.toggle('collapsed', mapCollapsed)
-  mapToggleBtn.textContent = mapCollapsed ? '‹' : '›'
-  if (!mapCollapsed) setTimeout(() => leafletMap?.invalidateSize(), 320)
-}
-
-document.getElementById('btn-map-toggle').addEventListener('click', () => {
-  if (mapVisible) closeMap(); else openMap()
-})
-mapToggleBtn.addEventListener('click', toggleCollapseMap)
-
-// When a map pin is clicked, highlight the corresponding card in the list
-function scrollCardIntoView(id) {
-  const card = document.querySelector(`.card[data-id="${id}"]`)
-  if (!card) return
-  // Remove previous highlight
-  document.querySelectorAll('.card.map-highlighted').forEach(c => c.classList.remove('map-highlighted'))
-  card.classList.add('map-highlighted')
-  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-}
-
-
-// ── Closed banner (from cache only) ──────────────────────────────────────
-const closedCount = loadCollection().filter(b => b.closed_status === 'closed').length
-if (closedCount) {
-  document.getElementById('closed-msg').textContent = `${closedCount} place${closedCount !== 1 ? 's' : ''} may have permanently closed — check Admin.`
-  document.getElementById('closed-banner').style.display = 'flex'
-}
-
-// ── Geolocation ───────────────────────────────────────────────────────────
-navigator.geolocation?.getCurrentPosition(p => {
-  window._userLat = p.coords.latitude; window._userLng = p.coords.longitude
-  if (leafletMap) showUserLocation(p.coords.latitude, p.coords.longitude)
-})
-
-window.addEventListener('collection-updated', render)
-await initCollection()
-render()
-</script>
+  <main class="hero">
+    <p class="hero-eyebrow">Private</p>
+    <h1 class="hero-title">Collections</h1>
+    <hr class="hero-rule">
+    <p class="hero-sub">A curated list of places worth visiting.</p>
+    <span class="under-construction">Under construction</span>
+  </main>
 </body>
 </html>

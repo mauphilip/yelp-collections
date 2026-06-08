@@ -47,7 +47,7 @@ function applyTheme(dark) {
   darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
 }
 const savedTheme = localStorage.getItem('yc_theme')
-applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+applyTheme(savedTheme ? savedTheme === 'dark' : false)
 darkToggle.addEventListener('click', () => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   applyTheme(!isDark); localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')

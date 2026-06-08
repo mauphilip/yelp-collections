@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login · Collections</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: #111;
+      --border: #2a2a2a;
+      --border-focus: #555;
+      --text: #f0f0f0;
+      --text-muted: #666;
+      --text-subtle: #333;
+      --red: #f03e3e;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Subtle grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--text-subtle) 1px, transparent 1px),
+        linear-gradient(90deg, var(--text-subtle) 1px, transparent 1px);
+      background-size: 80px 80px;
+      opacity: .07;
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, var(--bg) 100%);
+      pointer-events: none;
+    }
+
+    .back-link {
+      position: fixed;
+      top: 1.25rem;
+      left: 1.5rem;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      letter-spacing: .01em;
+      transition: color .2s;
+      z-index: 10;
+    }
+    .back-link:hover { color: var(--text); text-decoration: none; }
+
+    .login-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .login-header {
+      text-align: center;
+    }
+    .login-logo {
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: .5rem;
+    }
+    .login-sub {
+      font-size: .82rem;
+      color: var(--text-muted);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+
+    .login-input {
+      width: 100%;
+      padding: .75rem 1rem;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: var(--font);
+      color: var(--text);
+      letter-spacing: .15em;
+      text-align: center;
+      transition: border-color .2s;
+      outline: none;
+    }
+    .login-input::placeholder { letter-spacing: normal; color: var(--text-muted); }
+    .login-input:focus { border-color: var(--border-focus); }
+    .login-input.shake {
+      animation: shake .4s ease;
+      border-color: var(--red);
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%,60%  { transform: translateX(-8px); }
+      40%,80%  { transform: translateX(8px); }
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: .75rem 1rem;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 10px;
+      font-size: .875rem;
+      font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer;
+      letter-spacing: -.01em;
+      transition: opacity .15s;
+    }
+    .login-btn:hover { opacity: .88; }
+    .login-btn:active { opacity: .75; }
+
+    .login-error {
+      font-size: .78rem;
+      color: var(--red);
+      text-align: center;
+      min-height: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <a href="index.html" class="back-link">← Back</a>
+
+  <div class="login-wrap">
+    <div class="login-box">
+      <div class="login-header">
+        <div class="login-logo">Collections</div>
+        <div class="login-sub">Enter password to continue</div>
+      </div>
+
+      <form class="login-form" id="login-form">
+        <input
+          class="login-input"
+          type="password"
+          id="password-input"
+          placeholder="Password"
+          autocomplete="current-password"
+          autofocus
+        >
+        <button type="submit" class="login-btn">Enter →</button>
+        <div class="login-error" id="login-error"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('yc_auth')) location.replace('collections.html')
+
+    const form = document.getElementById('login-form')
+    const input = document.getElementById('password-input')
+    const errorEl = document.getElementById('login-error')
+
+    form.addEventListener('submit', e => {
+      e.preventDefault()
+      if (input.value === '1990') {
+        localStorage.setItem('yc_auth', '1')
+        location.replace('collections.html')
+      } else {
+        errorEl.textContent = 'Incorrect password'
+        input.classList.remove('shake')
+        void input.offsetWidth // force reflow to restart animation
+        input.classList.add('shake')
+        input.value = ''
+        input.addEventListener('animationend', () => input.classList.remove('shake'), { once: true })
+      }
+    })
+  </script>
+</body>
+</html>

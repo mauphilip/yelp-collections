@@ -11,13 +11,13 @@
 <nav class="nav">
   <span class="nav-logo">Yelp Collections+</span>
   <div class="nav-links" id="nav-links">
-    <a href="index.html" class="nav-link">My List</a>
+    <a href="collections.html" class="nav-link">My List</a>
     <a href="admin.html" class="nav-link">Admin</a>
   </div>
   <div class="nav-menu-wrap">
     <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">☰</button>
     <div class="nav-menu-dropdown" id="nav-menu-dropdown">
-      <a class="nav-menu-item" href="index.html">My List</a>
+      <a class="nav-menu-item" href="collections.html">My List</a>
       <a class="nav-menu-item" href="admin.html">Admin</a>
       <div class="nav-menu-divider"></div>
       <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
@@ -113,7 +113,7 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
     <h3>Import report</h3>
     <div id="report-summary" style="display:flex;gap:.75rem;flex-wrap:wrap;margin:.75rem 0;"></div>
     <div id="report-problems" style="font-size:.82rem;"></div>
-    <a href="index.html" class="btn-primary" style="display:block;text-align:center;margin-top:1rem;">Go to my list →</a>
+    <a href="collections.html" class="btn-primary" style="display:block;text-align:center;margin-top:1rem;">Go to my list →</a>
   </div>
 
   <!-- Diff tool (always available) -->
@@ -130,6 +130,7 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
 <script type="module">
+if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw '' }
 import { initCollection, saveBusiness, saveStubBusiness, loadCollection } from './app.js'
 
 // ── Dark mode + nav menu ─────────────────────────────────────────────────────
@@ -140,7 +141,7 @@ import { initCollection, saveBusiness, saveStubBusiness, loadCollection } from '
     darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
   }
   const savedTheme = localStorage.getItem('yc_theme')
-  applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+  applyTheme(savedTheme ? savedTheme === 'dark' : false)
   darkToggle.addEventListener('click', () => {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
     applyTheme(!isDark)
@@ -170,10 +171,15 @@ const progressCounter = document.getElementById('progress-counter')
 const resumeBox = document.getElementById('resume-box')
 const resumeInfo = document.getElementById('resume-info')
 
-function addLog(text, type = '') {
+function addLog(text, type = '', url = '') {
   const div = document.createElement('div')
   div.className = 'progress-item ' + type
-  div.textContent = (type === 'done' ? '✓ ' : type === 'err' ? '✗ ' : type === 'warn' ? '⏸ ' : '⋯ ') + text
+  const prefix = type === 'done' ? '✓ ' : type === 'err' ? '✗ ' : type === 'warn' ? '⏸ ' : '⋯ '
+  if (url) {
+    div.innerHTML = `${prefix}<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px;">${text}</a>`
+  } else {
+    div.textContent = prefix + text
+  }
   log.appendChild(div)
   log.scrollTop = log.scrollHeight
 }
@@ -301,7 +307,7 @@ async function runImport(ids, collectionName, total, alreadyDone) {
         const biz = await res.json()
         saveBusiness(biz, [], collectionName)
         successList.push({ id, name: biz.name })
-        addLog(`${biz.name}`, 'done')
+        addLog(`${biz.name}`, 'done', biz.url)
         imported++
         break
       } catch (err) {

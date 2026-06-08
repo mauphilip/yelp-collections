@@ -206,10 +206,12 @@
   <div class="nav-menu-wrap">
     <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">☰</button>
     <div class="nav-menu-dropdown" id="nav-menu-dropdown">
-      <a class="nav-menu-item" href="index.html">My List</a>
+      <a class="nav-menu-item" href="collections.html">My List</a>
       <a class="nav-menu-item" href="admin.html">Admin</a>
       <div class="nav-menu-divider"></div>
       <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+      <div class="nav-menu-divider"></div>
+      <button class="nav-menu-item" id="logout-btn">Log out</button>
     </div>
   </div>
 </nav>
@@ -224,6 +226,8 @@
     <button class="admin-tab-btn" data-tab="closed"><span class="admin-tab-icon">🔍</span> Check Closed</button>
     <button class="admin-tab-btn" data-tab="tags"><span class="admin-tab-icon">🏷</span> Tags</button>
     <button class="admin-tab-btn" data-tab="connections"><span class="admin-tab-icon">🔌</span> Connections</button>
+    <button class="admin-tab-btn" data-tab="sync"><span class="admin-tab-icon">🔄</span> Sync</button>
+    <button class="admin-tab-btn" data-tab="stats"><span class="admin-tab-icon">📊</span> Stats</button>
     <div style="flex:1;"></div>
     <button id="btn-lock-admin" class="admin-tab-btn" style="color:var(--text-subtle);font-size:.75rem;"><span class="admin-tab-icon">🔒</span> Lock</button>
   </aside>
@@ -238,7 +242,8 @@
         <span id="select-count">0 selected</span>
         <span class="select-spacer"></span>
         <button id="bulk-want">Want to Go</button>
-        <button id="bulk-been">Been There</button>
+        <button id="bulk-been">Been</button>
+        <button id="bulk-skip">Skip</button>
         <button id="bulk-add-tag">+ Tag</button>
         <button id="bulk-remove-tag">− Tag</button>
         <button id="bulk-remove" class="danger">Remove</button>
@@ -360,7 +365,7 @@
                 style="flex:2;min-width:160px;margin:0;">
               <input id="search-import-location" class="import-input" type="text" placeholder="City or neighborhood…"
                 style="flex:1;min-width:140px;margin:0;">
-              <button id="btn-search-import" class="btn-primary" style="flex-shrink:0;max-width:100px;">Search</button>
+              <button id="btn-search-import" class="btn-primary" style="flex-shrink:0;min-width:100px;white-space:nowrap;">Search</button>
             </div>
             <div id="search-import-results" style="margin-top:.75rem;"></div>
           </div>
@@ -546,6 +551,52 @@ alert(links.length + ' URLs copied!');</code></div>
         <!-- Filter + list -->
         <input id="tag-search" class="import-input" style="margin-bottom:.75rem;" type="search" placeholder="Filter tags…" autocomplete="off">
         <div id="tags-list"></div>
+
+        <!-- Tag Recommender -->
+        <div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem;">
+          <h3 style="font-size:.85rem;font-weight:700;margin-bottom:.25rem;">Tag Recommender</h3>
+          <p class="section-desc" style="margin-bottom:.75rem;">Find restaurants matching keywords, then tag them all at once. Keywords auto-fill from the tag name — edit them to broaden or narrow.</p>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;">
+            <input id="rec-tag" type="text" class="import-input" placeholder="Tag name…" style="flex:1;min-width:130px;margin:0;" autocomplete="off">
+            <input id="rec-keywords" type="text" class="import-input" placeholder="Keywords (comma-separated)…" style="flex:2;min-width:180px;margin:0;" autocomplete="off">
+          </div>
+          <div id="rec-results"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Tab: Sync ══ -->
+    <div id="tab-sync" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Sync</h2>
+        <p class="section-desc">Reconcile your collection against Yelp: check for missing entries or fetch updated business data.</p>
+
+        <!-- Sub-mode toggle -->
+        <div style="display:flex;gap:.35rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+          <button class="btn-sm sync-mode-btn active" data-mode="diff" style="font-size:.78rem;">📋 List Diff</button>
+          <button class="btn-sm sync-mode-btn" data-mode="freshness" style="font-size:.78rem;">🔄 Data Freshness</button>
+        </div>
+
+        <!-- ── Mode: List Diff ── -->
+        <div id="sync-mode-diff">
+          <p class="section-desc" style="margin-bottom:.75rem;">Paste Yelp business URLs to see what's missing from your collection.</p>
+          <textarea id="sync-diff-ids" class="import-input" rows="6"
+            placeholder="https://www.yelp.com/biz/some-place&#10;https://www.yelp.com/biz/another-place&#10;…"></textarea>
+          <button id="btn-sync-diff" class="btn-primary" style="margin-top:.5rem;">Check diff</button>
+          <div id="sync-diff-results" style="margin-top:.75rem;font-size:.82rem;"></div>
+        </div>
+
+        <!-- ── Mode: Data Freshness ── -->
+        <div id="sync-mode-freshness" style="display:none;">
+          <div class="api-notice" style="margin-bottom:.75rem;">⚠ Uses 1 Yelp API call per business. Review your quota before running.</div>
+          <div id="sync-quota-info" style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem;"></div>
+          <button id="btn-sync-all" class="btn-primary" style="max-width:180px;margin-bottom:1rem;">Check all businesses</button>
+          <div id="sync-progress" style="display:none;margin-bottom:.75rem;">
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" id="sync-bar"></div></div>
+            <p id="sync-progress-msg" style="font-size:.8rem;color:var(--text-muted);margin-top:.35rem;"></p>
+          </div>
+          <div id="sync-results"></div>
+        </div>
       </div>
     </div>
 
@@ -613,6 +664,15 @@ alert(links.length + ' URLs copied!');</code></div>
       </div>
     </div>
 
+    <!-- ══ Tab: Stats ══ -->
+    <div id="tab-stats" class="admin-tab-panel">
+      <div class="admin-section">
+        <h2>Collection Stats</h2>
+        <p class="section-desc">A breakdown of your saved places.</p>
+        <div id="stats-body" style="margin-top:1.25rem;display:flex;flex-direction:column;gap:1.5rem;"></div>
+      </div>
+    </div>
+
   </div><!-- /admin-main -->
 </div><!-- /admin-layout -->
 
@@ -629,6 +689,7 @@ alert(links.length + ' URLs copied!');</code></div>
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
 <script type="module">
+if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw '' }
 import {
   initCollection, loadCollection, removeBusiness, updateBusiness, addTag, removeTag,
   getAllTags, filterAndSort, checkClosedBusinesses, rateLimitStatus, getDisplayImage,
@@ -640,6 +701,8 @@ import {
   getImports, saveImport, getImportQueue, setImportQueue,
   getRateInfo, checkYelpRateLimit, searchBusinesses,
   geocodeZip,
+  getCollectionStats,
+  diffYelpFields, applyYelpPatch, batchPatchCollection, yelpFetch,
 } from './app.js'
 
 // ── Dark mode ─────────────────────────────────────────────────────────────
@@ -649,7 +712,7 @@ function applyTheme(dark) {
   darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
 }
 const savedTheme = localStorage.getItem('yc_theme')
-applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches)
+applyTheme(savedTheme ? savedTheme === 'dark' : false)
 darkToggle.addEventListener('click', () => {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   applyTheme(!isDark)
@@ -659,6 +722,7 @@ const navMenuBtn = document.getElementById('nav-menu-btn')
 const navMenuDropdown = document.getElementById('nav-menu-dropdown')
 navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
 document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('yc_auth'); location.replace('index.html') })
 
 // ── Tab switching ──────────────────────────────────────────────────────────
 function activateTab(tab) {
@@ -667,6 +731,8 @@ function activateTab(tab) {
   if (tab === 'closed')       refreshClosedStats()
   if (tab === 'tags')         renderTagsTab()
   if (tab === 'connections')  initConnectionsTab()
+  if (tab === 'stats')        renderStatsTab()
+  if (tab === 'sync')         initSyncTab()
   location.hash = tab
 }
 
@@ -783,6 +849,7 @@ function updateSelectCount() { document.getElementById('select-count').textConte
 
 document.getElementById('bulk-want').addEventListener('click', () => { if (selectedIds.size) { bulkSetStatus([...selectedIds], 'want'); render(); updateSelectCount() } })
 document.getElementById('bulk-been').addEventListener('click', () => { if (selectedIds.size) { bulkSetStatus([...selectedIds], 'been'); render(); updateSelectCount() } })
+document.getElementById('bulk-skip').addEventListener('click', () => { if (selectedIds.size) { bulkSetStatus([...selectedIds], 'skip'); render(); updateSelectCount() } })
 function openBulkTagPopover(anchorEl, mode) {
   document.getElementById('bulk-tag-popover')?.remove()
   const ids = [...selectedIds]
@@ -854,6 +921,7 @@ function renderCard(biz) {
   }).join('')
   const wantActive = biz.status === 'want' ? ' active' : ''
   const beenActive = biz.status === 'been' ? ' active' : ''
+  const skipActive = biz.status === 'skip' ? ' active' : ''
   const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const notesHtml = renderNotes(biz.notes)
@@ -880,13 +948,14 @@ function renderCard(biz) {
       </div>
       <div class="card-actions">
         <button class="btn-sm${wantActive}" data-status-id="${biz.id}" data-status-val="want">Want to Go</button>
-        <button class="btn-sm${beenActive}" data-status-id="${biz.id}" data-status-val="been">Been There</button>
+        <button class="btn-sm${beenActive}" data-status-id="${biz.id}" data-status-val="been">Been</button>
+        <button class="btn-sm${skipActive}" data-status-id="${biz.id}" data-status-val="skip">Skip</button>
       </div>
     </div>`
 }
 
 function renderCardRow(biz) {
-  const statusBadge = biz.status === 'been' ? '<span class="badge-been">Been</span>' : biz.status === 'want' ? '<span class="badge-want">Want</span>' : ''
+  const statusBadge = biz.status === 'been' ? '<span class="badge-been">Been</span>' : biz.status === 'want' ? '<span class="badge-want">Want</span>' : biz.status === 'skip' ? '<span style="font-size:.68rem;font-weight:700;border-radius:4px;padding:.1rem .35rem;background:var(--gray-light);color:var(--text-muted);text-decoration:line-through;">Skip</span>' : ''
   const closedBadge = biz.closed_status === 'closed' ? '<span class="badge-closed">Closed</span>' : ''
   const selectedClass = selectedIds.has(biz.id) ? ' selected' : ''
   return `<div class="card-row${selectedClass}" data-id="${biz.id}">
@@ -899,6 +968,7 @@ function renderCardRow(biz) {
     <span style="display:flex;gap:.3rem;">
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="want" style="font-size:.7rem;padding:.15rem .4rem;">Want</button>
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="been" style="font-size:.7rem;padding:.15rem .4rem;">Been</button>
+      <button class="btn-sm" data-status-id="${biz.id}" data-status-val="skip" style="font-size:.7rem;padding:.15rem .4rem;">Skip</button>
       <button class="btn-sm" data-remove="${biz.id}" style="font-size:.7rem;padding:.15rem .4rem;color:var(--red);">✕</button>
     </span>
   </div>`
@@ -1084,7 +1154,7 @@ document.querySelectorAll('.snippet-box').forEach(box => {
           ? `<span style="font-size:.72rem;background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.18rem .45rem;font-weight:700;white-space:nowrap;flex-shrink:0;">✓ Saved</span>`
           : `<button class="btn-sm${retry ? '' : ''}" data-qi="${biz.id}" style="white-space:nowrap;flex-shrink:0;">${retry ? 'Retry' : 'Import'}</button>`
 
-        return `<div class="search-import-row" data-id="${biz.id}">
+        return `<div class="search-import-row" data-id="${biz.id}" data-url="${biz.url}" style="cursor:pointer;">
           <div style="flex:1;min-width:0;">
             <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${biz.name}</div>
             <div style="font-size:.74rem;color:var(--text-muted);margin-top:.1rem;">${addr}</div>
@@ -1124,6 +1194,13 @@ document.querySelectorAll('.snippet-box').forEach(box => {
 
   btnSearch.addEventListener('click', runSearch)
   ;[termEl, locEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch() }))
+
+  // Whole row opens Yelp — ignore clicks on the Import/Retry button
+  resultsEl.addEventListener('click', e => {
+    if (e.target.closest('button')) return
+    const row = e.target.closest('.search-import-row')
+    if (row?.dataset.url) window.open(row.dataset.url, '_blank', 'noopener')
+  })
 })()
 
 // ── Phase 1: Check (no API) ────────────────────────────────────────────────
@@ -2148,6 +2225,315 @@ document.getElementById('btn-lock-admin')?.addEventListener('click', () => {
   localStorage.removeItem('admin_unlocked')
   location.reload()
 })
+
+// ── Stats tab ──────────────────────────────────────────────────────────────
+function renderStatsTab() {
+  const { total, want, been, skip, closed, prices, topCats, topCities } = getCollectionStats()
+  const body = document.getElementById('stats-body')
+  const bar = (val, max, color) =>
+    `<div style="height:8px;border-radius:4px;background:var(--border);overflow:hidden;flex:1;">
+      <div style="height:100%;width:${max ? Math.round(val/max*100) : 0}%;background:${color};border-radius:4px;"></div>
+    </div>`
+
+  body.innerHTML = `
+    <!-- Overview -->
+    <div>
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:.75rem;">Overview</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+        ${[
+          ['Total', total, 'var(--text)'],
+          ['Want to Go', want, 'var(--blue)'],
+          ['Been', been, 'var(--green)'],
+          ['Skip', skip, 'var(--text-muted)'],
+          ['Closed', closed, 'var(--red)'],
+        ].map(([label, val, color]) => `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;min-width:90px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:800;color:${color};">${val}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem;">${label}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Price breakdown -->
+    <div>
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:.75rem;">Price Range</div>
+      <div style="display:flex;flex-direction:column;gap:.5rem;max-width:320px;">
+        ${[['$', prices['$']], ['$$', prices['$$']], ['$$$', prices['$$$']], ['$$$$', prices['$$$$']]].map(([label, val]) => `
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <span style="font-size:.78rem;font-weight:600;width:32px;">${label}</span>
+            ${bar(val, total, 'var(--blue)')}
+            <span style="font-size:.75rem;color:var(--text-muted);width:24px;text-align:right;">${val}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Top categories -->
+    ${topCats.length ? `
+    <div>
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:.75rem;">Top Categories</div>
+      <div style="display:flex;flex-direction:column;gap:.45rem;max-width:400px;">
+        ${topCats.map(([cat, count]) => `
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <span style="font-size:.8rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cat}</span>
+            ${bar(count, topCats[0][1], 'var(--blue)')}
+            <span style="font-size:.75rem;color:var(--text-muted);width:24px;text-align:right;">${count}</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- Top cities -->
+    ${topCities.length ? `
+    <div>
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:.75rem;">Top Cities</div>
+      <div style="display:flex;flex-direction:column;gap:.45rem;max-width:400px;">
+        ${topCities.map(([city, count]) => `
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <span style="font-size:.8rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${city}</span>
+            ${bar(count, topCities[0][1], 'var(--green)')}
+            <span style="font-size:.75rem;color:var(--text-muted);width:24px;text-align:right;">${count}</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+  `
+}
+
+// ── Tag Recommender ────────────────────────────────────────────────────────
+;(function() {
+  const tagEl = document.getElementById('rec-tag')
+  const kwEl  = document.getElementById('rec-keywords')
+  const resultsEl = document.getElementById('rec-results')
+  if (!tagEl) return
+
+  function runRecommender() {
+    const tag    = tagEl.value.trim()
+    const rawKw  = kwEl.value.trim()
+    resultsEl.innerHTML = ''
+    if (!rawKw) return
+
+    const keywords   = rawKw.split(',').map(k => k.trim().toLowerCase()).filter(Boolean)
+    const collection = loadCollection().filter(b => !b.not_found)
+
+    const matches = collection.filter(biz => {
+      const catTitles   = (biz.categories || []).map(c => c.title.toLowerCase())
+      const catAliases  = (biz.categories || []).map(c => c.alias.toLowerCase())
+      const name        = biz.name.toLowerCase()
+      return keywords.some(kw =>
+        catTitles.some(t => t.includes(kw)) ||
+        catAliases.some(a => a.includes(kw)) ||
+        name.includes(kw)
+      )
+    })
+
+    if (!matches.length) {
+      resultsEl.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">No matches found.</p>'
+      return
+    }
+
+    const alreadyTagged = tag ? matches.filter(b => b.tags.includes(tag)) : []
+    const untagged      = tag ? matches.filter(b => !b.tags.includes(tag)) : matches
+
+    resultsEl.innerHTML = `
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">
+        ${matches.length} match${matches.length !== 1 ? 'es' : ''}${alreadyTagged.length ? ` · ${alreadyTagged.length} already tagged` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.3rem;max-height:280px;overflow-y:auto;margin-bottom:.75rem;">
+        ${untagged.map(b => `
+          <label style="display:flex;align-items:center;gap:.6rem;padding:.35rem .5rem;border-radius:6px;background:var(--surface);border:1px solid var(--border);cursor:pointer;font-size:.82rem;">
+            <input type="checkbox" class="rec-check" data-id="${b.id}" checked style="flex-shrink:0;">
+            <span style="font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.name}</span>
+            <span style="color:var(--text-subtle);font-size:.74rem;white-space:nowrap;overflow:hidden;max-width:160px;text-overflow:ellipsis;">${(b.categories||[]).map(c=>c.title).join(', ')}</span>
+          </label>`).join('')}
+        ${alreadyTagged.map(b => `
+          <div style="display:flex;align-items:center;gap:.6rem;padding:.35rem .5rem;border-radius:6px;background:var(--surface);border:1px solid var(--border);opacity:.5;font-size:.82rem;">
+            <span style="color:var(--green);flex-shrink:0;width:14px;">✓</span>
+            <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.name}</span>
+            <span style="color:var(--text-subtle);font-size:.74rem;">already tagged</span>
+          </div>`).join('')}
+      </div>
+      ${untagged.length && tag
+        ? `<button id="rec-apply" class="btn-primary">Apply "${tag}" to <span id="rec-apply-count">${untagged.length}</span> selected</button>`
+        : untagged.length && !tag
+          ? '<p style="font-size:.78rem;color:var(--text-muted);">Enter a tag name above to apply.</p>'
+          : ''}
+    `
+
+    resultsEl.querySelectorAll('.rec-check').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const n = resultsEl.querySelectorAll('.rec-check:checked').length
+        const countEl = document.getElementById('rec-apply-count')
+        if (countEl) countEl.textContent = n
+      })
+    })
+
+    document.getElementById('rec-apply')?.addEventListener('click', () => {
+      const ids = [...resultsEl.querySelectorAll('.rec-check:checked')].map(cb => cb.dataset.id)
+      if (!ids.length || !tag) return
+      bulkAddTag(ids, tag)
+      render()
+      runRecommender()
+    })
+  }
+
+  let recTimer
+  tagEl.addEventListener('input', e => {
+    if (!kwEl.dataset.edited) kwEl.value = e.target.value
+    clearTimeout(recTimer); recTimer = setTimeout(runRecommender, 200)
+  })
+  kwEl.addEventListener('input', e => {
+    e.target.dataset.edited = '1'
+    clearTimeout(recTimer); recTimer = setTimeout(runRecommender, 200)
+  })
+})()
+
+// ── Sync tab ───────────────────────────────────────────────────────────────
+function initSyncTab() {
+  // Sub-mode toggle
+  const modeBtns = document.querySelectorAll('.sync-mode-btn')
+  modeBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      modeBtns.forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      document.getElementById('sync-mode-diff').style.display      = btn.dataset.mode === 'diff' ? '' : 'none'
+      document.getElementById('sync-mode-freshness').style.display = btn.dataset.mode === 'freshness' ? '' : 'none'
+      if (btn.dataset.mode === 'freshness') updateSyncQuota()
+    })
+  })
+
+  // ── List Diff ──
+  document.getElementById('btn-sync-diff')?.addEventListener('click', () => {
+    const raw = document.getElementById('sync-diff-ids').value.trim()
+    if (!raw) return
+    const extractId = s => { try { s = decodeURIComponent(s.trim()) } catch {} const m = s.match(/yelp\.com\/biz\/([^/?#\s]+)/); return m ? m[1].replace(/\/$/, '') : null }
+    const ids = [...new Set(raw.split('\n').map(extractId).filter(Boolean))]
+    if (!ids.length) { alert('No valid Yelp URLs found.'); return }
+    const byId = Object.fromEntries(loadCollection().map(b => [b.id, b]))
+    const present = [], stubbed = [], missing = []
+    for (const id of ids) {
+      const b = byId[id]
+      if (!b) missing.push(id)
+      else if (b.not_found) stubbed.push(id)
+      else present.push({ id, name: b.name, url: b.url })
+    }
+    const el = document.getElementById('sync-diff-results')
+    el.innerHTML = `
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;">
+        <span style="background:#d3f9d8;color:#2f9e44;padding:.28rem .7rem;border-radius:20px;font-weight:700;">✓ ${present.length} in collection</span>
+        ${stubbed.length ? `<span style="background:#fff3cd;color:#856404;padding:.28rem .7rem;border-radius:20px;font-weight:700;">⚠ ${stubbed.length} flagged</span>` : ''}
+        ${missing.length ? `<span style="background:#ffe0e0;color:#c92a2a;padding:.28rem .7rem;border-radius:20px;font-weight:700;">✗ ${missing.length} missing</span>` : ''}
+      </div>
+      ${missing.length ? `
+        <p style="font-weight:600;margin-bottom:.4rem;">Not in your collection:</p>
+        <div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.75rem;">
+          ${missing.map(id => `<div style="padding:.35rem .6rem;background:var(--gray-light);border-radius:6px;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;">${id}</a>
+          </div>`).join('')}
+        </div>` : ''}
+      ${stubbed.length ? `
+        <p style="font-weight:600;margin-bottom:.4rem;">Flagged (saved as placeholder):</p>
+        <div style="display:flex;flex-direction:column;gap:.3rem;">
+          ${stubbed.map(id => `<div style="padding:.35rem .6rem;background:#fff9db;border-radius:6px;">
+            <a href="https://www.yelp.com/biz/${id}" target="_blank" rel="noopener" style="font-weight:600;">${id}</a>
+          </div>`).join('')}
+        </div>` : ''}`
+  })
+
+  // ── Data Freshness ──
+  function updateSyncQuota() {
+    const info = getRateInfo()
+    const el = document.getElementById('sync-quota-info')
+    const total = loadCollection().filter(b => !b.not_found).length
+    if (!el) return
+    el.innerHTML = `<strong>${total}</strong> businesses to check.`
+      + (info.remaining ? ` You have <strong>${info.remaining}</strong> Yelp API calls remaining today.` : '')
+  }
+
+  let syncRunning = false
+  document.getElementById('btn-sync-all')?.addEventListener('click', async () => {
+    if (syncRunning) return
+    syncRunning = true
+    const btn = document.getElementById('btn-sync-all')
+    btn.disabled = true; btn.textContent = 'Checking…'
+
+    const businesses = loadCollection().filter(b => !b.not_found)
+    const progressEl = document.getElementById('sync-progress')
+    const barEl      = document.getElementById('sync-bar')
+    const msgEl      = document.getElementById('sync-progress-msg')
+    const resultsEl  = document.getElementById('sync-results')
+
+    progressEl.style.display = 'block'
+    resultsEl.innerHTML = ''
+
+    const changed = []   // { id, fresh, diffs }
+    const noChange = []
+
+    for (let i = 0; i < businesses.length; i++) {
+      const biz = businesses[i]
+      const pct = Math.round(((i + 1) / businesses.length) * 100)
+      barEl.style.width = pct + '%'
+      msgEl.textContent = `${i + 1} / ${businesses.length} — ${biz.name}`
+
+      try {
+        const result = await yelpFetch(`/businesses/${biz.id}`)
+        if (result.status === 429) {
+          msgEl.textContent = `Rate limited — waiting ${result.retryAfter}s…`
+          await new Promise(r => setTimeout(r, result.retryAfter * 1000))
+          const retry = await yelpFetch(`/businesses/${biz.id}`)
+          if (retry.status !== 200) continue
+          result.data = retry.data
+        }
+        if (!result.data) continue
+        const diffs = diffYelpFields(biz, result.data)
+        if (diffs.length) changed.push({ id: biz.id, name: biz.name, url: biz.url, fresh: result.data, diffs })
+        else noChange.push(biz.id)
+      } catch { noChange.push(biz.id) }
+
+      await new Promise(r => setTimeout(r, 300))
+    }
+
+    barEl.style.width = '100%'
+    msgEl.textContent = `Done — ${changed.length} change${changed.length !== 1 ? 's' : ''} found.`
+
+    function formatDiff(d) {
+      if (d.field === 'price') return `price: ${d.oldVal || '?'} → ${d.newVal || '?'}`
+      if (d.field === 'name') return `name: "${d.oldVal}" → "${d.newVal}"`
+      if (d.field === 'closed_status') return `status: ${d.oldVal} → <strong style="color:${d.newVal === 'closed' ? 'var(--red)' : 'var(--green)'}">${d.newVal}</strong>`
+      if (d.field === 'categories') return `categories updated`
+      if (d.field === 'hours') return `hours updated`
+      if (d.field === 'location') return `address updated`
+      if (d.field === 'coordinates') return `location moved`
+      if (d.field === 'phone' || d.field === 'display_phone') return `phone: ${d.newVal || 'removed'}`
+      if (d.field === 'transactions') return `services updated`
+      return `${d.field} updated`
+    }
+
+    if (!changed.length) {
+      resultsEl.innerHTML = '<p style="font-size:.82rem;color:var(--green);">✓ All businesses are up to date.</p>'
+    } else {
+      resultsEl.innerHTML = `
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:.75rem;">${changed.length} business${changed.length !== 1 ? 'es' : ''} have updated info:</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem;max-height:360px;overflow-y:auto;">
+          ${changed.map(c => `
+            <div style="padding:.45rem .6rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:.82rem;">
+              <div style="font-weight:600;margin-bottom:.2rem;">
+                <a href="${c.url}" target="_blank" rel="noopener" style="color:inherit;">${c.name}</a>
+              </div>
+              <div style="color:var(--text-muted);font-size:.76rem;">${c.diffs.map(formatDiff).join(' · ')}</div>
+            </div>`).join('')}
+        </div>
+        <button id="btn-apply-patches" class="btn-primary">Apply ${changed.length} patch${changed.length !== 1 ? 'es' : ''} to collection</button>
+      `
+      document.getElementById('btn-apply-patches')?.addEventListener('click', () => {
+        batchPatchCollection(changed.map(c => ({ id: c.id, fresh: c.fresh })))
+        render()
+        resultsEl.innerHTML = `<p style="font-size:.82rem;color:var(--green);">✓ ${changed.length} business${changed.length !== 1 ? 'es' : ''} updated.</p>`
+        document.getElementById('btn-apply-patches')?.remove()
+      })
+    }
+
+    btn.disabled = false; btn.textContent = 'Check all businesses'
+    syncRunning = false
+  })
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.addEventListener('collection-updated', render)

@@ -281,6 +281,27 @@ export function getAllTags() {
   return [...new Set([...fromBiz, ...fromMeta])].sort()
 }
 
+export function getAllCities() {
+  return [...new Set(loadCollection().map(b => b.location?.city).filter(Boolean))].sort()
+}
+
+export function getCollectionStats() {
+  const list = loadCollection().filter(b => !b.not_found)
+  const want = list.filter(b => b.status === 'want').length
+  const been = list.filter(b => b.status === 'been').length
+  const skip = list.filter(b => b.status === 'skip').length
+  const closed = list.filter(b => b.closed_status === 'closed').length
+  const prices = { '$': 0, '$$': 0, '$$$': 0, '$$$$': 0, '?': 0 }
+  for (const b of list) prices[b.price || '?'] = (prices[b.price || '?'] || 0) + 1
+  const catCounts = {}
+  for (const b of list) for (const c of b.categories || []) catCounts[c.title] = (catCounts[c.title] || 0) + 1
+  const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const cityCounts = {}
+  for (const b of list) { const c = b.location?.city; if (c) cityCounts[c] = (cityCounts[c] || 0) + 1 }
+  const topCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+  return { total: list.length, want, been, skip, closed, prices, topCats, topCities }
+}
+
 // ── Closed Business Checker ───────────────────────────────────────────────────
 // No artificial stagger — goes as fast as the API allows.
 // On 429, waits for Yelp's retryAfter then continues.
@@ -339,24 +360,45 @@ export function isOpenNow(biz) {
   })
 }
 
-export function filterAndSort(list, { tags, price, minRating, status, sortBy, showClosed, openNow, hasTags }) {
+export function filterAndSort(list, { tags, price, minRating, status, sortBy, showClosed, showSkip, openNow, hasTags, maxDistanceMiles, cities }) {
   let out = [...list]
   if (!showClosed) out = out.filter(b => b.closed_status !== 'closed')
+  if (!showSkip && !status) out = out.filter(b => b.status !== 'skip')
   if (openNow)     out = out.filter(b => isOpenNow(b) === true)
   if (hasTags)     out = out.filter(b => b.tags?.length > 0)
   if (tags && tags.length) out = out.filter(b => tags.every(t => b.tags.includes(t)))
   if (price && price.length) out = out.filter(b => price.includes(b.price))
   if (minRating) out = out.filter(b => b.rating >= minRating)
   if (status) out = out.filter(b => b.status === status)
+  if (cities && cities.length) out = out.filter(b => cities.includes(b.location?.city))
+
+  const refLat = window._filterLat ?? window._userLat
+  const refLng = window._filterLng ?? window._userLng
+  if (maxDistanceMiles && refLat != null) {
+    out = out.filter(b => {
+      const { latitude, longitude } = b.coordinates || {}
+      if (!latitude || !longitude) return false
+      return haversineMiles(refLat, refLng, latitude, longitude) <= maxDistanceMiles
+    })
+  }
 
   if (sortBy === 'rating') out.sort((a, b) => b.rating - a.rating)
   else if (sortBy === 'name') out.sort((a, b) => a.name.localeCompare(b.name))
   else if (sortBy === 'saved') out.sort((a, b) => b.saved_at - a.saved_at)
-  else if (sortBy === 'distance' && window._userLat) {
-    const dist = b => Math.hypot((b.coordinates?.latitude - window._userLat) || 0, (b.coordinates?.longitude - window._userLng) || 0)
-    out.sort((a, b) => dist(a) - dist(b))
+  else if (sortBy === 'distance' && refLat != null) {
+    out.sort((a, b) => haversineMiles(refLat, refLng, a.coordinates?.latitude, a.coordinates?.longitude)
+                     - haversineMiles(refLat, refLng, b.coordinates?.latitude, b.coordinates?.longitude))
   }
   return out
+}
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  if (!lat2 || !lng2) return Infinity
+  const R = 3958.8
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.asin(Math.sqrt(a))
 }
 
 export async function geocodeZip(zip) {
@@ -468,6 +510,58 @@ export function bulkRemoveTag(ids, tag) {
 
 export function bulkRemove(ids) {
   saveCollection(loadCollection().filter(b => !ids.includes(b.id)))
+}
+
+// ── Yelp Data Sync ────────────────────────────────────────────────────────
+// Fields sourced from Yelp API — safe to overwrite with fresh data.
+// Excludes rating/review_count (change constantly, not meaningful to patch).
+export const YELP_PATCH_FIELDS = [
+  'name', 'price', 'categories', 'location', 'coordinates',
+  'phone', 'display_phone', 'hours', 'transactions',
+]
+
+// Returns array of { field, oldVal, newVal } for any changed fields.
+export function diffYelpFields(stored, fresh) {
+  const diffs = []
+  for (const field of YELP_PATCH_FIELDS) {
+    if (JSON.stringify(stored[field] ?? null) !== JSON.stringify(fresh[field] ?? null)) {
+      diffs.push({ field, oldVal: stored[field], newVal: fresh[field] })
+    }
+  }
+  // is_closed maps to closed_status
+  if (fresh.is_closed !== undefined) {
+    const freshStatus = fresh.is_closed ? 'closed' : 'open'
+    const knownStatus = stored.closed_status && !['unknown', 'not_found'].includes(stored.closed_status)
+    if (knownStatus && stored.closed_status !== freshStatus) {
+      diffs.push({ field: 'closed_status', oldVal: stored.closed_status, newVal: freshStatus })
+    }
+  }
+  return diffs
+}
+
+// Returns a new business object with fresh Yelp fields merged in,
+// preserving all user fields (tags, status, notes, custom_image, saved_at, etc.).
+export function applyYelpPatch(stored, fresh) {
+  const patched = { ...stored }
+  for (const field of YELP_PATCH_FIELDS) {
+    if (fresh[field] !== undefined) patched[field] = fresh[field]
+  }
+  if (fresh.is_closed !== undefined) patched.closed_status = fresh.is_closed ? 'closed' : 'open'
+  return patched
+}
+
+// Applies multiple Yelp patches in a single KV write.
+// patches: [{ id, fresh }] where fresh is the new Yelp API response.
+export function batchPatchCollection(patches) {
+  const list = loadCollection()
+  let changed = false
+  for (const { id, fresh } of patches) {
+    const idx = list.findIndex(b => b.id === id)
+    if (idx === -1) continue
+    list[idx] = applyYelpPatch(list[idx], fresh)
+    changed = true
+  }
+  if (changed) saveCollection(list)
 }
 
 // ── Rich Notes Rendering ─────────────────────────────────────────────────────
