@@ -79,6 +79,92 @@
 
     /* Clickable cards when map is open */
     .app-body.map-open .card { cursor: pointer; }
+    .open-now-badge {
+      display: inline-block; font-size: .65rem; font-weight: 700;
+      padding: .1rem .42rem; border-radius: 4px;
+      background: #d3f9d8; color: #2b6e38; letter-spacing: .02em;
+    }
+    [data-theme="dark"] .open-now-badge { background: #1a3d22; color: #69db7c; }
+    .closed-now-badge {
+      display: inline-block; font-size: .65rem; font-weight: 700;
+      padding: .1rem .42rem; border-radius: 4px;
+      background: var(--surface); color: var(--text-subtle); letter-spacing: .02em;
+      border: 1px solid var(--border);
+    }
+    /* Stats summary bar */
+    #stats-bar {
+      font-size: .75rem; color: var(--text-muted); font-weight: 600;
+      padding: .3rem 1rem; display: flex; gap: 1rem; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border); background: var(--surface);
+    }
+    #stats-bar span { display: flex; align-items: center; gap: .25rem; }
+
+    /* ── Random picker modal ── */
+    #random-modal {
+      display: none;
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,.55);
+      align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    #random-modal.open { display: flex; animation: modal-in .18s ease; }
+    @keyframes modal-in {
+      from { opacity: 0; transform: scale(.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    #random-modal-card {
+      background: var(--bg);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 40px rgba(0,0,0,.28);
+      width: 100%; max-width: 420px;
+      overflow: hidden;
+      position: relative;
+    }
+    #random-modal-img {
+      width: 100%; height: 200px; object-fit: cover; display: block;
+      background: var(--surface);
+    }
+    #random-modal-img.no-img { height: 80px; }
+    #random-modal-body { padding: 1.1rem 1.2rem 1rem; }
+    #random-modal-header {
+      font-size: .68rem; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--text-subtle);
+      margin-bottom: .4rem; display: flex; align-items: center; gap: .4rem;
+    }
+    #random-modal-name {
+      font-size: 1.25rem; font-weight: 800; letter-spacing: -.03em;
+      line-height: 1.2; margin-bottom: .35rem;
+    }
+    #random-modal-name a { color: inherit; text-decoration: none; }
+    #random-modal-name a:hover { text-decoration: underline; }
+    #random-modal-meta { font-size: .82rem; color: var(--text-muted); margin-bottom: .3rem; display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+    #random-modal-location { font-size: .8rem; color: var(--text-subtle); margin-bottom: .5rem; }
+    #random-modal-tags { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .5rem; }
+    #random-modal-notes { font-size: .8rem; color: var(--text-muted); }
+    #random-modal-actions {
+      display: flex; gap: .6rem; padding: .85rem 1.2rem 1rem;
+      border-top: 1px solid var(--border);
+    }
+    #random-modal-actions .btn-again {
+      flex: 1; padding: .55rem; font-size: .88rem; font-weight: 700;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; color: var(--text);
+      font-family: var(--font); transition: background .1s;
+    }
+    #random-modal-actions .btn-again:hover { background: var(--gray-light); }
+    #random-modal-actions .btn-confirm {
+      flex: 2; padding: .55rem; font-size: .88rem; font-weight: 700;
+      background: var(--blue); color: #fff; border: none;
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-family: var(--font); transition: opacity .1s;
+    }
+    #random-modal-actions .btn-confirm:hover { opacity: .88; }
+    #random-modal-close {
+      position: absolute; top: .6rem; right: .7rem;
+      background: rgba(0,0,0,.4); color: #fff; border: none;
+      width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+      font-size: .9rem; line-height: 1; display: flex; align-items: center; justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -120,6 +206,7 @@
 <div id="closed-banner" class="banner banner-warn" style="display:none;">
   <span id="closed-msg"></span>
 </div>
+<div id="stats-bar" style="display:none;"></div>
 
 <!-- ── App body: list + collapsible map panel ── -->
 <div class="app-body" id="app-body">
@@ -213,6 +300,26 @@
 
 </div>
 
+
+<!-- ── Random Picker Modal ── -->
+<div id="random-modal" role="dialog" aria-modal="true" aria-label="Random pick">
+  <div id="random-modal-card">
+    <button id="random-modal-close" aria-label="Close">✕</button>
+    <img id="random-modal-img" src="" alt="">
+    <div id="random-modal-body">
+      <div id="random-modal-header">🎲 Tonight's Pick</div>
+      <div id="random-modal-name"></div>
+      <div id="random-modal-meta"></div>
+      <div id="random-modal-location"></div>
+      <div id="random-modal-tags"></div>
+      <div id="random-modal-notes"></div>
+    </div>
+    <div id="random-modal-actions">
+      <button class="btn-again" id="random-modal-again">Pick again</button>
+      <button class="btn-confirm" id="random-modal-confirm">That's the one! ✓</button>
+    </div>
+  </div>
+</div>
 
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
@@ -392,6 +499,10 @@ function renderCard(biz, index) {
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>'
     : biz.closed_status === 'unknown' ? '<span class="warn-badge">Check</span>' : ''
 
+  const isOpenNow = biz.hours?.[0]?.is_open_now
+  const openNowBadge = !closed && isOpenNow === true ? '<span class="open-now-badge">Open now</span>'
+    : !closed && isOpenNow === false ? '<span class="closed-now-badge">Closed now</span>' : ''
+
   const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>'
     : biz.status === 'skip' ? '<span class="status-badge skip">Skip</span>' : ''
 
@@ -422,7 +533,7 @@ function renderCard(biz, index) {
         </div>
         ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''}${website}</div>` : ''}
         ${tags ? `<div class="card-tags" style="margin-top:.35rem;">${tags}</div>` : ''}
-        ${statusBadge ? `<div style="margin-top:.25rem;">${statusBadge}</div>` : ''}
+        ${statusBadge || openNowBadge ? `<div style="margin-top:.25rem;display:flex;gap:.35rem;flex-wrap:wrap;">${statusBadge}${openNowBadge}</div>` : ''}
         ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
       </div>
       <div class="card-actions">
@@ -432,18 +543,70 @@ function renderCard(biz, index) {
     </div>`
 }
 
-// ── Random picker ────────────────────────────────────────────────────────
+// ── Random picker modal ───────────────────────────────────────────────────
+const randomModal = document.getElementById('random-modal')
+
+function showRandomModal(biz) {
+  if (!biz) return
+  const tagMeta = getTagMeta()
+  const img = document.getElementById('random-modal-img')
+  const src = biz.custom_image || biz.image_url || ''
+  if (src) { img.src = src; img.classList.remove('no-img') }
+  else { img.src = ''; img.classList.add('no-img') }
+
+  document.getElementById('random-modal-name').innerHTML =
+    `<a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a>`
+
+  const stars = starsHtml(biz.rating).replace(/<[^>]+>/g, '')
+  document.getElementById('random-modal-meta').innerHTML =
+    [stars, biz.review_count ? `${biz.review_count} reviews` : '', biz.price || '', categoryLabel(biz)]
+      .filter(Boolean).join(' · ')
+
+  const city = [biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
+  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
+  document.getElementById('random-modal-location').innerHTML =
+    city ? `<a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--text-subtle);text-decoration:none;">📍 ${city}</a>` : ''
+
+  document.getElementById('random-modal-tags').innerHTML = (biz.tags || []).map(t => {
+    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${t}</span>`
+  }).join('')
+
+  document.getElementById('random-modal-notes').innerHTML = renderNotes(biz.notes) || ''
+
+  randomModal.classList.add('open')
+  if (mapVisible) { highlightMarker(biz.id); panToMarker(biz.id) }
+}
+
+function closeRandomModal() {
+  randomModal.classList.remove('open')
+}
+
 document.getElementById('btn-random').addEventListener('click', () => {
   if (!currentList.length) return
-  const pick = pickRandom(currentList)
-  if (!pick) return
-  const card = document.querySelector(`.card[data-id="${pick.id}"]`)
-  if (card) {
-    document.querySelectorAll('.card.map-highlighted').forEach(c => c.classList.remove('map-highlighted'))
-    card.classList.add('map-highlighted')
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  showRandomModal(pickRandom(currentList))
+})
+
+document.getElementById('random-modal-again').addEventListener('click', () => {
+  if (!currentList.length) return
+  randomModal.classList.remove('open')
+  requestAnimationFrame(() => showRandomModal(pickRandom(currentList)))
+})
+
+document.getElementById('random-modal-confirm').addEventListener('click', closeRandomModal)
+document.getElementById('random-modal-close').addEventListener('click', closeRandomModal)
+randomModal.addEventListener('click', e => { if (e.target === randomModal) closeRandomModal() })
+
+document.addEventListener('keydown', e => {
+  if (!randomModal.classList.contains('open')) return
+  if (e.key === 'Escape') closeRandomModal()
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (document.activeElement === document.getElementById('random-modal-confirm')) return
+    e.preventDefault()
+    randomModal.classList.remove('open')
+    requestAnimationFrame(() => showRandomModal(pickRandom(currentList)))
   }
-  if (mapVisible) { highlightMarker(pick.id); panToMarker(pick.id) }
 })
 
 // ── Card click → map sync ─────────────────────────────────────────────────
@@ -532,6 +695,24 @@ function scrollCardIntoView(id) {
 }
 
 
+// ── Stats bar ─────────────────────────────────────────────────────────────
+function renderStatsBar() {
+  const all = loadCollection().filter(b => !b.not_found)
+  if (!all.length) return
+  const want = all.filter(b => !b.status || b.status === 'want').length
+  const been = all.filter(b => b.status === 'been').length
+  const skip = all.filter(b => b.status === 'skip').length
+  const closed = all.filter(b => b.closed_status === 'closed').length
+  const bar = document.getElementById('stats-bar')
+  bar.style.display = 'flex'
+  bar.innerHTML = [
+    want  ? `<span>🍽 ${want} want to go</span>` : '',
+    been  ? `<span>✓ ${been} been</span>` : '',
+    skip  ? `<span>— ${skip} skip</span>` : '',
+    closed? `<span style="color:var(--red,#e03131);">✕ ${closed} closed</span>` : '',
+  ].filter(Boolean).join('')
+}
+
 // ── Closed banner (from cache only) ──────────────────────────────────────
 const closedCount = loadCollection().filter(b => b.closed_status === 'closed').length
 if (closedCount) {
@@ -545,9 +726,10 @@ navigator.geolocation?.getCurrentPosition(p => {
   if (leafletMap) showUserLocation(p.coords.latitude, p.coords.longitude)
 })
 
-window.addEventListener('collection-updated', render)
+window.addEventListener('collection-updated', () => { render(); renderStatsBar() })
 await initCollection()
 render()
+renderStatsBar()
 </script>
 </body>
 </html>

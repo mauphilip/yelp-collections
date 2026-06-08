@@ -409,6 +409,27 @@ export async function geocodeZip(zip) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
 }
 
+// ── Tag Suggestions ───────────────────────────────────────────────────────────
+
+export function getSuggestedTags(businesses, existingTags) {
+  const tagLower = (existingTags || []).map(t => t.toLowerCase())
+  const counts = {}
+  for (const biz of businesses) {
+    for (const cat of (biz.categories || [])) {
+      const title = cat.title
+      if (!title) continue
+      const tl = title.toLowerCase()
+      // Skip if already covered by an existing tag (fuzzy)
+      const covered = tagLower.some(t => t.includes(tl) || tl.includes(t))
+      if (covered) continue
+      counts[title] = (counts[title] || 0) + 1
+    }
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, count]) => ({ category, count, keywords: category }))
+}
+
 // ── Random Picker ─────────────────────────────────────────────────────────────
 
 export function pickRandom(list) {

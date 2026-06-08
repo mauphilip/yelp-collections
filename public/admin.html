@@ -111,6 +111,21 @@
       margin: 0 auto;
       padding: 1.75rem 1.5rem 4rem;
     }
+    /* Import & Sync section collapsibles */
+    #tab-import-sync { max-width: 680px; margin: 0 auto; padding: 1.25rem 1.5rem 4rem; }
+    #tab-import-sync details { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .75rem; overflow: hidden; }
+    #tab-import-sync details[open] { box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+    .sync-section-header {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .9rem; font-weight: 700; letter-spacing: -.02em;
+      padding: .85rem 1rem; cursor: pointer; list-style: none;
+      background: var(--surface); color: var(--text);
+      user-select: none;
+    }
+    .sync-section-header::-webkit-details-marker { display: none; }
+    details[open] > .sync-section-header { border-bottom: 1px solid var(--border); }
+    #tab-import-sync .admin-section { padding: 1.25rem 1.25rem 1.5rem; max-width: none; margin: 0; }
+    #tab-import-sync .admin-section h2 { display: none; }
     .admin-section h2 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.03em; margin-bottom: .3rem; }
     .admin-section .section-desc {
       font-size: .82rem;
@@ -222,11 +237,9 @@
   <aside class="admin-sidebar">
     <div class="admin-sidebar-title">Admin</div>
     <button class="admin-tab-btn active" data-tab="list"><span class="admin-tab-icon">☰</span> List</button>
-    <button class="admin-tab-btn" data-tab="import"><span class="admin-tab-icon">⬇</span> Import</button>
-    <button class="admin-tab-btn" data-tab="closed"><span class="admin-tab-icon">🔍</span> Check Closed</button>
+    <button class="admin-tab-btn" data-tab="import-sync"><span class="admin-tab-icon">⬇</span> Import &amp; Sync</button>
     <button class="admin-tab-btn" data-tab="tags"><span class="admin-tab-icon">🏷</span> Tags</button>
     <button class="admin-tab-btn" data-tab="connections"><span class="admin-tab-icon">🔌</span> Connections</button>
-    <button class="admin-tab-btn" data-tab="sync"><span class="admin-tab-icon">🔄</span> Sync</button>
     <button class="admin-tab-btn" data-tab="stats"><span class="admin-tab-icon">📊</span> Stats</button>
     <div style="flex:1;"></div>
     <button id="btn-lock-admin" class="admin-tab-btn" style="color:var(--text-subtle);font-size:.75rem;"><span class="admin-tab-icon">🔒</span> Lock</button>
@@ -347,8 +360,13 @@
       </div>
     </div>
 
-    <!-- ══ Tab: Import ══ -->
-    <div id="tab-import" class="admin-tab-panel">
+    <!-- ══ Tab: Import & Sync ══ -->
+    <div id="tab-import-sync" class="admin-tab-panel">
+
+    <!-- ─── Section 1: Add New ─────────────────────────── -->
+    <details open>
+      <summary class="sync-section-header">⬇ Add New</summary>
+      <div id="tab-import" class="admin-tab-panel" style="display:block!important;padding:0;">
       <div class="admin-section">
         <h2>Import</h2>
         <p class="section-desc">Two-phase workflow: check your list against what's already saved (no API), then execute the import with live progress and error details.</p>
@@ -502,10 +520,13 @@ alert(links.length + ' URLs copied!');</code></div>
           <div id="import-history-table"></div>
         </div>
       </div>
-    </div>
+      </div><!-- /tab-import -->
+    </details>
 
-    <!-- ══ Tab: Check Closed ══ -->
-    <div id="tab-closed" class="admin-tab-panel">
+    <!-- ─── Section 2: Check Closed ─────────────────────── -->
+    <details>
+      <summary class="sync-section-header">🔍 Check Closed</summary>
+      <div id="tab-closed" class="admin-tab-panel" style="display:block!important;padding:0;">
       <div class="admin-section">
         <h2>Check for Closed Businesses</h2>
         <div class="api-notice">⚠ Uses the Yelp API — 1 call per business that hasn't been checked within 7 days. Watch your daily quota.</div>
@@ -531,9 +552,13 @@ alert(links.length + ' URLs copied!');</code></div>
           </div>
         </details>
       </div>
-    </div>
+      </div><!-- /tab-closed -->
+    </details>
 
-    <!-- ══ Tab: Tags ══ -->
+    <!-- ─── Section 3: Sync Data ─────────────────────────── -->
+    <details>
+      <summary class="sync-section-header">🔄 Sync Data</summary>
+      <div id="tab-sync" class="admin-tab-panel" style="display:block!important;padding:0;">
     <div id="tab-tags" class="admin-tab-panel">
       <div class="admin-section">
         <h2>Tag Manager</h2>
@@ -551,6 +576,14 @@ alert(links.length + ' URLs copied!');</code></div>
         <!-- Filter + list -->
         <input id="tag-search" class="import-input" style="margin-bottom:.75rem;" type="search" placeholder="Filter tags…" autocomplete="off">
         <div id="tags-list"></div>
+
+        <!-- Suggested Tags -->
+        <div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem;">
+          <h3 style="font-size:.85rem;font-weight:700;margin-bottom:.25rem;">Suggested Tags</h3>
+          <p class="section-desc" style="margin-bottom:.75rem;">Top categories across your collection that don't already have a matching tag. Click "Use" to pre-fill the recommender below.</p>
+          <div id="suggested-tags-table"></div>
+          <div id="suggested-tags-pages" style="display:flex;align-items:center;gap:.5rem;margin-top:.6rem;font-size:.82rem;color:var(--text-muted);"></div>
+        </div>
 
         <!-- Tag Recommender -->
         <div style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem;">
@@ -598,7 +631,10 @@ alert(links.length + ' URLs copied!');</code></div>
           <div id="sync-results"></div>
         </div>
       </div>
-    </div>
+      </div><!-- /tab-sync -->
+    </details>
+
+    </div><!-- /tab-import-sync -->
 
     <!-- ══ Tab: Connections ══ -->
     <div id="tab-connections" class="admin-tab-panel">
@@ -697,7 +733,7 @@ import {
   bulkSetStatus, bulkAddTag, bulkRemoveTag, bulkRemove,
   saveBusiness, saveStubBusiness,
   renameTagGlobal, deleteTagGlobal,
-  getTagMeta, setTagColor, removeTagMeta, setTagListMeta,
+  getTagMeta, setTagColor, removeTagMeta, setTagListMeta, getSuggestedTags,
   getImports, saveImport, getImportQueue, setImportQueue,
   getRateInfo, checkYelpRateLimit, searchBusinesses,
   geocodeZip,
@@ -727,12 +763,12 @@ document.getElementById('logout-btn').addEventListener('click', () => { localSto
 // ── Tab switching ──────────────────────────────────────────────────────────
 function activateTab(tab) {
   document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
-  document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab))
-  if (tab === 'closed')       refreshClosedStats()
-  if (tab === 'tags')         renderTagsTab()
+  // Only toggle top-level panels (not nested sub-panels inside import-sync)
+  document.querySelectorAll('#admin-main > .admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab))
+  if (tab === 'import-sync')  refreshClosedStats()
+  if (tab === 'tags')         { renderTagsTab(); renderSuggestedTags() }
   if (tab === 'connections')  initConnectionsTab()
   if (tab === 'stats')        renderStatsTab()
-  if (tab === 'sync')         initSyncTab()
   location.hash = tab
 }
 
@@ -741,8 +777,11 @@ document.querySelectorAll('.admin-tab-btn').forEach(btn => {
 })
 
 // Restore tab from URL hash on load
-const initialTab = location.hash.replace('#', '') || 'list'
-const validTabs = ['list', 'import', 'closed', 'tags']
+const _rawHash = location.hash.replace('#', '') || 'list'
+// Redirect legacy hashes to merged tab
+const _hashRemap = { import: 'import-sync', closed: 'import-sync', sync: 'import-sync' }
+const initialTab = _hashRemap[_rawHash] || _rawHash
+const validTabs = ['list', 'import-sync', 'tags', 'connections', 'stats']
 activateTab(validTabs.includes(initialTab) ? initialTab : 'list')
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -2018,6 +2057,56 @@ document.getElementById('btn-create-tag')?.addEventListener('click', () => {
   renderTagsTab()
 })
 
+let _suggestedPage = 0
+const SUGGESTED_PAGE_SIZE = 5
+
+function renderSuggestedTags() {
+  const all = loadCollection().filter(b => !b.not_found)
+  const existingTags = getAllTags()
+  const suggestions = getSuggestedTags(all, existingTags)
+  const tableEl = document.getElementById('suggested-tags-table')
+  const pagesEl = document.getElementById('suggested-tags-pages')
+  if (!suggestions.length) {
+    tableEl.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">All major categories are already covered by tags.</p>'
+    pagesEl.innerHTML = ''; return
+  }
+  const totalPages = Math.ceil(suggestions.length / SUGGESTED_PAGE_SIZE)
+  _suggestedPage = Math.min(_suggestedPage, totalPages - 1)
+  const page = suggestions.slice(_suggestedPage * SUGGESTED_PAGE_SIZE, (_suggestedPage + 1) * SUGGESTED_PAGE_SIZE)
+
+  tableEl.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:.4rem .75rem;align-items:center;
+                font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+                color:var(--text-subtle);padding:.3rem .5rem;margin-bottom:.15rem;">
+      <span>Category</span><span style="text-align:right;">Matches</span><span></span>
+    </div>
+    ${page.map(s => `
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:.4rem .75rem;align-items:center;
+                  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+                  padding:.45rem .65rem;margin-bottom:.25rem;">
+        <span style="font-size:.84rem;font-weight:600;">${s.category}</span>
+        <span style="font-size:.78rem;color:var(--text-muted);font-weight:600;text-align:right;">${s.count}</span>
+        <button class="btn-sm" data-use-suggestion="${s.category}" data-keywords="${s.keywords}" style="white-space:nowrap;">→ Use</button>
+      </div>`).join('')}`
+
+  pagesEl.innerHTML = totalPages > 1
+    ? `<button class="btn-sm" id="sugg-prev" ${_suggestedPage === 0 ? 'disabled' : ''}>‹ Prev</button>
+       <span>${_suggestedPage + 1} / ${totalPages}</span>
+       <button class="btn-sm" id="sugg-next" ${_suggestedPage >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>`
+    : ''
+
+  tableEl.querySelectorAll('[data-use-suggestion]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('rec-tag').value = btn.dataset.useSuggestion
+      document.getElementById('rec-keywords').value = btn.dataset.keywords
+      document.getElementById('rec-keywords').dispatchEvent(new Event('input'))
+      document.getElementById('rec-tag').scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  })
+  document.getElementById('sugg-prev')?.addEventListener('click', () => { _suggestedPage--; renderSuggestedTags() })
+  document.getElementById('sugg-next')?.addEventListener('click', () => { _suggestedPage++; renderSuggestedTags() })
+}
+
 function renderTagsTab(filterStr = '') {
   const counts = getTagCounts()
   const tagMeta = getTagMeta()
@@ -2543,6 +2632,7 @@ checkPausedQueue()
 renderImportHistory()
 refreshClosedStats()
 renderTagsTab()
+renderSuggestedTags()
 </script>
 </body>
 </html>
