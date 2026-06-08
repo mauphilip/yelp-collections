@@ -30,24 +30,6 @@
       overflow: hidden;
     }
 
-    /* Login button — top right */
-    .login-link {
-      position: fixed;
-      top: 1.25rem;
-      right: 1.5rem;
-      font-size: .8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-decoration: none;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: .35rem .9rem;
-      letter-spacing: .01em;
-      transition: color .2s, border-color .2s;
-      z-index: 10;
-    }
-    .login-link:hover { color: var(--text); border-color: #444; text-decoration: none; }
-
     /* Centered content */
     .hero {
       display: flex;
@@ -106,33 +88,22 @@
       border: none;
     }
 
-    /* Construction badge */
-    .under-construction {
-      display: inline-flex;
-      align-items: center;
-      gap: .4rem;
-      font-size: .7rem;
-      font-weight: 600;
-      letter-spacing: .08em;
+    /* Enter CTA */
+    .enter-btn {
+      display: inline-block;
+      margin-top: .5rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: .04em;
       text-transform: uppercase;
-      color: var(--text-subtle);
-      border: 1px solid var(--border);
+      color: var(--bg);
+      background: var(--text);
+      text-decoration: none;
       border-radius: 999px;
-      padding: .3rem .8rem;
-      margin-top: .25rem;
+      padding: .85rem 2.75rem;
+      transition: opacity .2s, transform .15s;
     }
-    .under-construction::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #f59f00;
-      animation: blink 2s ease-in-out infinite;
-    }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .3; }
-    }
+    .enter-btn:hover { opacity: .85; transform: translateY(-1px); text-decoration: none; }
 
     /* Subtle grid background */
     body::before {
@@ -158,14 +129,12 @@
   </style>
 </head>
 <body>
-  <a href="login.html" class="login-link">Login →</a>
-
   <main class="hero">
     <p class="hero-eyebrow">Private</p>
     <h1 class="hero-title">Collections</h1>
     <hr class="hero-rule">
     <p class="hero-sub">A curated list of places worth visiting.</p>
-    <span class="under-construction">Under construction</span>
+    <a href="collections.html" class="enter-btn">Enter</a>
   </main>
 </body>
 </html>

@@ -1,2 +1,395 @@
 <!DOCTYPE html>
-<html><head><meta http-equiv="refresh" content="0;url=collections.html"></head><body></body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Discover · Collections</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .discover-wrap {
+      max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem 5rem;
+    }
+    .discover-header {
+      text-align: center; margin-bottom: 2.5rem;
+    }
+    .discover-eyebrow {
+      font-size: .68rem; font-weight: 800; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--text-subtle); margin-bottom: .5rem;
+    }
+    .discover-title {
+      font-size: clamp(1.75rem, 5vw, 3rem); font-weight: 900;
+      letter-spacing: -.05em; line-height: 1; margin-bottom: .6rem;
+    }
+    .discover-sub {
+      font-size: .9rem; color: var(--text-muted); max-width: 340px; margin: 0 auto;
+    }
+
+    /* Mood grid */
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: .75rem;
+    }
+    @media (min-width: 560px) { .mood-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .mood-tile {
+      position: relative; border-radius: var(--radius); overflow: hidden;
+      border: 1.5px solid var(--border); cursor: pointer;
+      padding: 1.25rem 1rem 1.1rem; display: flex; flex-direction: column;
+      align-items: flex-start; gap: .4rem; background: var(--surface);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .18s;
+      user-select: none;
+    }
+    .mood-tile:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--text-subtle);
+    }
+    .mood-tile.active {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-subtle), var(--shadow-md);
+    }
+    .mood-emoji { font-size: 1.75rem; line-height: 1; }
+    .mood-label {
+      font-size: .9rem; font-weight: 800; letter-spacing: -.02em;
+      color: var(--text); line-height: 1.1;
+    }
+    .mood-desc { font-size: .72rem; color: var(--text-muted); font-weight: 500; line-height: 1.35; }
+    .mood-count {
+      margin-top: auto; font-size: .65rem; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--text-subtle);
+    }
+    .mood-count.has-results { color: var(--blue); }
+
+    /* Pick view */
+    #pick-view { display: none; }
+    #pick-view.visible { display: block; }
+
+    .pick-back {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: none; border: none; cursor: pointer;
+      font-size: .8rem; font-weight: 700; color: var(--text-muted);
+      font-family: var(--font); padding: 0; margin-bottom: 1.5rem;
+      transition: color .15s;
+    }
+    .pick-back:hover { color: var(--text); }
+
+    .pick-mood-label {
+      font-size: .68rem; font-weight: 800; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--text-subtle);
+      margin-bottom: 1.25rem; display: flex; align-items: center; gap: .4rem;
+    }
+
+    .pick-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: var(--shadow-md); max-width: 520px;
+      animation: pick-in .25s cubic-bezier(.32,.72,0,1);
+    }
+    @keyframes pick-in {
+      from { opacity: 0; transform: translateY(10px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .pick-img {
+      width: 100%; height: 280px; object-fit: cover; display: block;
+      background: var(--gray-light);
+    }
+    .pick-img.no-img { height: 60px; }
+    .pick-body { padding: 1.35rem 1.5rem 1.1rem; }
+    .pick-name {
+      font-size: 1.6rem; font-weight: 900; letter-spacing: -.05em;
+      line-height: 1.1; margin-bottom: .4rem;
+    }
+    .pick-name a { color: inherit; text-decoration: none; }
+    .pick-name a:hover { text-decoration: underline; }
+    .pick-meta {
+      font-size: .82rem; color: var(--text-muted);
+      display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
+      margin-bottom: .35rem;
+    }
+    .pick-location { font-size: .8rem; color: var(--text-subtle); margin-bottom: .55rem; }
+    .pick-tags { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .55rem; }
+    .pick-notes { font-size: .8rem; color: var(--text-muted); line-height: 1.55; }
+
+    .pick-actions {
+      padding: .9rem 1.5rem 1.25rem; border-top: 1px solid var(--border);
+      display: flex; gap: .5rem; flex-wrap: wrap;
+    }
+    .pick-btn-again {
+      flex: 1; min-width: 120px; padding: .65rem; font-size: .88rem;
+      font-weight: 700; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; color: var(--text);
+      font-family: var(--font); transition: background .1s;
+    }
+    .pick-btn-again:hover { background: var(--gray-light); }
+    .pick-btn-yelp {
+      padding: .65rem 1.1rem; font-size: .88rem; font-weight: 700;
+      background: var(--blue); color: #fff; border: none;
+      border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font);
+      text-decoration: none; display: inline-flex; align-items: center;
+      transition: opacity .1s;
+    }
+    .pick-btn-yelp:hover { opacity: .88; text-decoration: none; }
+    .pick-btn-dir {
+      padding: .65rem 1.1rem; font-size: .88rem; font-weight: 700;
+      background: transparent; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted);
+      font-family: var(--font); text-decoration: none; display: inline-flex; align-items: center;
+      transition: all .1s;
+    }
+    .pick-btn-dir:hover { border-color: var(--text); color: var(--text); text-decoration: none; }
+
+    .pick-counter {
+      margin-top: .85rem; font-size: .72rem; font-weight: 600;
+      color: var(--text-subtle); text-align: center;
+    }
+
+    .pick-empty {
+      text-align: center; padding: 3rem 2rem;
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); max-width: 520px;
+    }
+    .pick-empty p { color: var(--text-muted); font-size: .9rem; line-height: 1.6; }
+    .pick-empty strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">Collections</span>
+  <div class="nav-menu-wrap">
+    <button class="nav-menu-btn" id="nav-menu-btn" aria-label="Menu">☰</button>
+    <div class="nav-menu-dropdown" id="nav-menu-dropdown">
+      <a class="nav-menu-item" href="collections.html">My List</a>
+      <a class="nav-menu-item" href="discover.html">Discover</a>
+      <a class="nav-menu-item" href="admin.html">Admin</a>
+      <div class="nav-menu-divider"></div>
+      <button class="nav-menu-item" id="dark-toggle">Dark mode</button>
+      <div class="nav-menu-divider"></div>
+      <button class="nav-menu-item" id="logout-btn">Log out</button>
+    </div>
+  </div>
+</nav>
+
+<div class="discover-wrap">
+
+  <!-- Mood selection -->
+  <div id="mood-view">
+    <div class="discover-header">
+      <p class="discover-eyebrow">What are you feeling?</p>
+      <h1 class="discover-title">Discover</h1>
+      <p class="discover-sub">Pick a vibe — we'll pull a random place from your list that fits.</p>
+    </div>
+    <div class="mood-grid" id="mood-grid"></div>
+  </div>
+
+  <!-- Pick result -->
+  <div id="pick-view">
+    <button class="pick-back" id="pick-back">← All vibes</button>
+    <div class="pick-mood-label" id="pick-mood-label"></div>
+    <div id="pick-card-wrap"></div>
+    <div class="pick-counter" id="pick-counter"></div>
+  </div>
+
+</div>
+
+<footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
+
+<script type="module">
+if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw '' }
+
+import { initCollection, loadCollection, getTagMeta, starsHtml, categoryLabel, getDisplayImage, renderNotes } from './app.js'
+
+// ── Dark mode ─────────────────────────────────────────────────────────────
+const darkToggle = document.getElementById('dark-toggle')
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+  darkToggle.textContent = dark ? '☀ Light mode' : '☾ Dark mode'
+}
+applyTheme(localStorage.getItem('yc_theme') === 'dark')
+darkToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  applyTheme(!isDark); localStorage.setItem('yc_theme', isDark ? 'light' : 'dark')
+})
+document.getElementById('logout-btn').addEventListener('click', () => {
+  localStorage.removeItem('yc_auth'); location.replace('index.html')
+})
+const navMenuBtn = document.getElementById('nav-menu-btn')
+const navMenuDropdown = document.getElementById('nav-menu-dropdown')
+navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown.classList.toggle('open') })
+document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+// ── Mood definitions ──────────────────────────────────────────────────────
+const MOODS = [
+  {
+    id: 'date-night', emoji: '🌹', label: 'Date Night', desc: 'Upscale & romantic',
+    filter: b => (b.price === '$$$' || b.price === '$$$$') && b.rating >= 4,
+  },
+  {
+    id: 'quick-bite', emoji: '🥗', label: 'Quick Bite', desc: 'Fast, casual, easy',
+    filter: b => b.price === '$' || b.price === '$$',
+  },
+  {
+    id: 'splurge', emoji: '💸', label: 'Splurge', desc: 'Go all out tonight',
+    filter: b => b.price === '$$$$',
+  },
+  {
+    id: 'hidden-gem', emoji: '💎', label: 'Hidden Gem', desc: 'Highly rated picks',
+    filter: b => b.rating >= 4.5,
+  },
+  {
+    id: 'brunch', emoji: '🥞', label: 'Brunch', desc: 'Weekend morning energy',
+    filter: b => (b.categories||[]).some(c => /breakfast|brunch/i.test(c.title))
+              || (b.tags||[]).some(t => /brunch|breakfast/i.test(t)),
+  },
+  {
+    id: 'outdoor', emoji: '🌿', label: 'Outdoor Vibes', desc: 'Patios & al fresco',
+    filter: b => (b.categories||[]).some(c => /bar|outdoor|patio|rooftop/i.test(c.title))
+              || (b.tags||[]).some(t => /outdoor|patio|rooftop|terrace/i.test(t)),
+  },
+  {
+    id: 'neighborhood', emoji: '🏘', label: 'Local Favorite', desc: 'Great & affordable',
+    filter: b => b.rating >= 4 && (b.price === '$' || b.price === '$$'),
+  },
+  {
+    id: 'surprise', emoji: '🎲', label: 'Surprise Me', desc: 'Pick anything on your list',
+    filter: () => true,
+  },
+]
+
+// ── State ─────────────────────────────────────────────────────────────────
+let activeMood = null
+let moodLists = {}
+let pickIndex = 0
+let shuffled = []
+
+function baseList() {
+  return loadCollection().filter(b => !b.not_found && b.status !== 'skip' && b.closed_status !== 'closed')
+}
+
+function shuffleArray(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// ── Render mood grid ──────────────────────────────────────────────────────
+function renderMoodGrid() {
+  const base = baseList()
+  const grid = document.getElementById('mood-grid')
+  grid.innerHTML = MOODS.map(m => {
+    const results = base.filter(m.filter)
+    moodLists[m.id] = results
+    return `
+      <div class="mood-tile${activeMood === m.id ? ' active' : ''}" data-mood="${m.id}">
+        <span class="mood-emoji">${m.emoji}</span>
+        <span class="mood-label">${m.label}</span>
+        <span class="mood-desc">${m.desc}</span>
+        <span class="mood-count${results.length ? ' has-results' : ''}">${results.length} place${results.length !== 1 ? 's' : ''}</span>
+      </div>`
+  }).join('')
+}
+
+// ── Render pick card ──────────────────────────────────────────────────────
+function renderPick() {
+  const mood = MOODS.find(m => m.id === activeMood)
+  const list = shuffled
+  const wrap = document.getElementById('pick-card-wrap')
+  const counter = document.getElementById('pick-counter')
+
+  if (!list.length) {
+    wrap.innerHTML = `
+      <div class="pick-empty">
+        <p>No places in your list match <strong>${mood.label}</strong> right now.<br>
+        Try a different vibe or add more places.</p>
+      </div>`
+    counter.textContent = ''
+    return
+  }
+
+  const biz = list[pickIndex]
+  const tagMeta = getTagMeta()
+  const imgSrc = getDisplayImage(biz)
+  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
+  const city = [biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
+  const tags = (biz.tags || []).map(t => {
+    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
+  }).join('')
+  const notes = renderNotes(biz.notes)
+  const stars = starsHtml(biz.rating).replace(/<[^>]+>/g,'')
+
+  wrap.innerHTML = `
+    <div class="pick-card">
+      <img class="pick-img${imgSrc ? '' : ' no-img'}" src="${imgSrc}" alt="${esc(biz.name)}" loading="eager">
+      <div class="pick-body">
+        <div class="pick-name"><a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a></div>
+        <div class="pick-meta">
+          <span class="stars">${stars}</span>
+          ${biz.review_count ? `<span>${biz.review_count} reviews</span>` : ''}
+          ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
+          <span class="cat">${esc(categoryLabel(biz))}</span>
+        </div>
+        ${city ? `<div class="pick-location">📍 <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${esc(city)}</a></div>` : ''}
+        ${tags ? `<div class="pick-tags">${tags}</div>` : ''}
+        ${notes ? `<div class="pick-notes">${notes}</div>` : ''}
+      </div>
+      <div class="pick-actions">
+        <button class="pick-btn-again" id="pick-again-btn">${pickIndex < list.length - 1 ? 'Pick again' : 'Start over'}</button>
+        <a class="pick-btn-yelp" href="${biz.url}" target="_blank" rel="noopener">Yelp ↗</a>
+        <a class="pick-btn-dir" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
+      </div>
+    </div>`
+
+  counter.textContent = `${pickIndex + 1} of ${list.length} options`
+
+  document.getElementById('pick-again-btn').addEventListener('click', () => {
+    pickIndex = pickIndex < list.length - 1 ? pickIndex + 1 : 0
+    if (pickIndex === 0) shuffled = shuffleArray(moodLists[activeMood])
+    renderPick()
+  })
+}
+
+// ── Show/hide views ───────────────────────────────────────────────────────
+function showMoodView() {
+  activeMood = null
+  document.getElementById('mood-view').style.display = 'block'
+  document.getElementById('pick-view').classList.remove('visible')
+  renderMoodGrid()
+}
+
+function showPickView(moodId) {
+  activeMood = moodId
+  const mood = MOODS.find(m => m.id === moodId)
+  shuffled = shuffleArray(moodLists[moodId])
+  pickIndex = 0
+  document.getElementById('mood-view').style.display = 'none'
+  document.getElementById('pick-view').classList.add('visible')
+  document.getElementById('pick-mood-label').innerHTML = `${mood.emoji} ${mood.label}`
+  renderPick()
+}
+
+// ── Events ────────────────────────────────────────────────────────────────
+document.getElementById('mood-grid').addEventListener('click', e => {
+  const tile = e.target.closest('.mood-tile')
+  if (!tile) return
+  showPickView(tile.dataset.mood)
+})
+
+document.getElementById('pick-back').addEventListener('click', showMoodView)
+
+// ── Init ──────────────────────────────────────────────────────────────────
+await initCollection()
+renderMoodGrid()
+</script>
+</body>
+</html>
