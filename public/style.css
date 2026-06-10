@@ -21,7 +21,7 @@
   /* Accents */
   --chili: #D9381E;         /* primary accent — chili oil */
   --chili-soft: #FBE9E5;
-  --pistachio: #5F6B3C;     /* open now / "been" / positive */
+  --pistachio: #5F6B3C;     /* open now / positive (NOT "been" — been is ink/gray) */
   --pistachio-soft: #EEF0E2;
   --mustard: #C98A12;       /* want-to-go */
 
@@ -399,7 +399,7 @@ a:hover { text-decoration: underline; }
 .card-row:hover { background: var(--gray-light); }
 .card-row.selected { background: var(--blue-light); outline: 1.5px solid var(--blue); }
 .card-row-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.badge-been { background: var(--green); color: #fff; font-size: .68rem; font-weight: 700; border-radius: 4px; padding: .1rem .35rem; }
+.badge-been { background: var(--ink); color: #fff; font-size: .68rem; font-weight: 700; border-radius: 4px; padding: .1rem .35rem; }
 .badge-want { background: var(--blue); color: #fff; font-size: .68rem; font-weight: 700; border-radius: 4px; padding: .1rem .35rem; }
 .badge-closed { background: var(--red); color: #fff; font-size: .68rem; font-weight: 700; border-radius: 4px; padding: .1rem .35rem; }
 
@@ -552,7 +552,7 @@ a:hover { text-decoration: underline; }
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.55' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .85 0'/%3E%3C/filter%3E%3Crect width='120' height='40' filter='url(%23n)'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='40'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.55' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .85 0'/%3E%3C/filter%3E%3Crect width='120' height='40' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.stamp.been { color: var(--pistachio); }
+.stamp.been { color: var(--ink); } /* ink reads like a real rubber stamp; dark mode → chalk white via --ink + screen blend */
 .stamp.skip { color: var(--ink-subtle); transform: translate(-50%, -50%) rotate(6deg); }
 [data-theme="dark"] .stamp { mix-blend-mode: screen; }
 
@@ -585,7 +585,7 @@ a:hover { text-decoration: underline; }
   text-transform: uppercase;
 }
 .status-badge.want { background: var(--gray-light); color: var(--ink-subtle); border: 1px solid var(--line); }
-.status-badge.been { background: var(--pistachio); color: #fff; }
+.status-badge.been { background: var(--ink); color: var(--bg); }
 .status-badge.skip { background: var(--gray-light); color: var(--ink-muted); border: 1px solid var(--line); text-decoration: line-through; }
 
 /* Permanently-closed / needs-check corner badge — top-right to clear card-num */
@@ -1216,11 +1216,11 @@ a:hover { text-decoration: underline; }
   letter-spacing: .01em; user-select: none;
 }
 .stat-pill.want { background: var(--blue-light); color: var(--blue); border-color: var(--blue-subtle); }
-.stat-pill.been { background: #d3f9d8; color: #2b6e38; border-color: #b2f2bb; }
+.stat-pill.been { background: var(--gray-light); color: var(--ink); border-color: var(--line); }
 .stat-pill.skip { background: var(--gray-light); color: var(--text-subtle); border-color: var(--border); }
 .stat-pill.closed { background: #ffe3e3; color: var(--red); border-color: #ffc9c9; cursor: pointer; }
 .stat-pill.closed:hover { opacity: .8; }
-[data-theme="dark"] .stat-pill.been { background: #1a3d22; color: #69db7c; border-color: #2b5c38; }
+[data-theme="dark"] .stat-pill.been { background: var(--gray-light); color: var(--ink); border-color: var(--line); }
 [data-theme="dark"] .stat-pill.closed { background: #3d1a1a; color: #fa5252; border-color: #6b2b2b; }
 
 /* ── Card inline edit panel ───────────────────────────────────────────────── */
@@ -1257,7 +1257,7 @@ a:hover { text-decoration: underline; }
 }
 .edit-status-btn:hover { border-color: var(--text); color: var(--text); }
 .edit-status-btn[data-s="want"].active { background: var(--chili-soft); border-color: var(--chili); color: var(--chili); }
-.edit-status-btn[data-s="been"].active { background: var(--pistachio-soft); border-color: var(--pistachio); color: var(--pistachio); }
+.edit-status-btn[data-s="been"].active { background: var(--gray-light); border-color: var(--ink); color: var(--ink); }
 .edit-status-btn[data-s="skip"].active { background: var(--gray-light); border-color: var(--ink-subtle); color: var(--ink-subtle); }
 
 .card-edit-tags-section { display: flex; flex-direction: column; gap: .35rem; }

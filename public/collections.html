@@ -21,7 +21,8 @@
     }
     .num-pin:hover { transform: scale(1.12); }
     .num-pin.highlighted { background: var(--ink) !important; transform: scale(1.2); box-shadow: 0 2px 0 rgba(22,22,22,.8); }
-    .num-pin.been { background: var(--pistachio); }
+    .num-pin.been { background: var(--ink); }
+    [data-theme="dark"] .num-pin.been { background: #B9B8B0; } /* light gray — distinct from accent, visible on dark tiles */
     .num-pin.closed { background: var(--ink-subtle); }
     .near-me-btn, .reset-view-btn {
       background: var(--surface); border: 1.5px solid var(--ink); border-radius: var(--radius);
