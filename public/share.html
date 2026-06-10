@@ -94,7 +94,7 @@ function renderCard(biz, tagMeta, index) {
       <div class="card-body">
         <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
         <div class="card-meta">
-          <span class="stars">${starsHtml(biz.rating)}</span>
+          ${biz.rating ? `<span class="stars">★ ${biz.rating}</span>` : ''}
           <span>${biz.review_count}</span>
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
           <span class="cat">${categoryLabel(biz)}</span>

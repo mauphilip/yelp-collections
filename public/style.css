@@ -556,7 +556,9 @@ a:hover { text-decoration: underline; }
 .stamp.skip { color: var(--ink-subtle); transform: translate(-50%, -50%) rotate(6deg); }
 [data-theme="dark"] .stamp { mix-blend-mode: screen; }
 
-/* Open / closed flag — mono, pinned bottom-left of the image */
+/* Open / closed flag — mono ink chip, pinned bottom-left of the image.
+   bg/text use --ink/--surface so the chip stays legible on photos in both
+   themes; OPEN vs CLOSED are distinguished by the word + time, not colour. */
 .open-flag {
   position: absolute;
   bottom: .55rem; left: .55rem;
@@ -565,12 +567,11 @@ a:hover { text-decoration: underline; }
   font-size: .62rem;
   font-weight: 600;
   letter-spacing: .05em;
-  background: var(--pistachio);
-  color: #fff;
+  background: var(--ink);
+  color: var(--surface);
   padding: .16rem .45rem;
   border-radius: 3px;
 }
-.open-flag.closed { background: var(--ink); }
 
 /* Status badges (still used in admin list rows) */
 .status-badge {

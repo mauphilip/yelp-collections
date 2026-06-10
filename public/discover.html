@@ -335,7 +335,7 @@ function renderPick() {
     return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
   }).join('')
   const notes = renderNotes(biz.notes)
-  const stars = starsHtml(biz.rating).replace(/<[^>]+>/g,'')
+  const stars = biz.rating ? `★ ${biz.rating}` : ''
 
   wrap.innerHTML = `
     <div class="pick-card">
