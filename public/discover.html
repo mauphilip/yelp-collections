@@ -6,7 +6,7 @@
   <title>Discover · Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
     .discover-wrap {
@@ -16,12 +16,14 @@
       text-align: center; margin-bottom: 2.5rem;
     }
     .discover-eyebrow {
-      font-size: .68rem; font-weight: 800; letter-spacing: .14em;
-      text-transform: uppercase; color: var(--text-subtle); margin-bottom: .5rem;
+      font-family: var(--mono);
+      font-size: .68rem; font-weight: 600; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--chili); margin-bottom: .5rem;
     }
     .discover-title {
-      font-size: clamp(1.75rem, 5vw, 3rem); font-weight: 900;
-      letter-spacing: -.05em; line-height: 1; margin-bottom: .6rem;
+      font-family: var(--display);
+      font-size: clamp(1.75rem, 5vw, 3rem); font-weight: 800;
+      letter-spacing: -.03em; line-height: 1; margin-bottom: .6rem;
     }
     .discover-sub {
       font-size: .9rem; color: var(--text-muted); max-width: 340px; margin: 0 auto;
@@ -37,32 +39,36 @@
 
     .mood-tile {
       position: relative; border-radius: var(--radius); overflow: hidden;
-      border: 1.5px solid var(--border); cursor: pointer;
+      border: 1.5px solid var(--ink); cursor: pointer;
       padding: 1.25rem 1rem 1.1rem; display: flex; flex-direction: column;
       align-items: flex-start; gap: .4rem; background: var(--surface);
-      transition: transform .2s ease, box-shadow .2s ease, border-color .18s;
+      box-shadow: var(--shadow);
+      transition: transform .12s ease, box-shadow .12s ease;
       user-select: none;
     }
     .mood-tile:hover {
       transform: translateY(-3px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--text-subtle);
+      box-shadow: var(--shadow-hover);
     }
     .mood-tile.active {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px var(--blue-subtle), var(--shadow-md);
+      background: var(--ink);
     }
+    .mood-tile.active .mood-label { color: var(--bg); }
+    .mood-tile.active .mood-desc { color: var(--ink-subtle); }
+    .mood-tile.active .mood-count { color: var(--bg); }
     .mood-emoji { font-size: 1.75rem; line-height: 1; }
     .mood-label {
-      font-size: .9rem; font-weight: 800; letter-spacing: -.02em;
+      font-family: var(--display);
+      font-size: 1rem; font-weight: 700; letter-spacing: -.02em;
       color: var(--text); line-height: 1.1;
     }
-    .mood-desc { font-size: .72rem; color: var(--text-muted); font-weight: 500; line-height: 1.35; }
+    .mood-desc { font-size: .74rem; color: var(--ink-muted); font-weight: 500; line-height: 1.35; }
     .mood-count {
-      margin-top: auto; font-size: .65rem; font-weight: 700; letter-spacing: .04em;
-      text-transform: uppercase; color: var(--text-subtle);
+      font-family: var(--mono);
+      margin-top: auto; font-size: .65rem; font-weight: 500; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--ink-subtle);
     }
-    .mood-count.has-results { color: var(--blue); }
+    .mood-count.has-results { color: var(--chili); }
 
     /* Pick view */
     #pick-view { display: none; }
@@ -78,35 +84,38 @@
     .pick-back:hover { color: var(--text); }
 
     .pick-mood-label {
-      font-size: .68rem; font-weight: 800; letter-spacing: .12em;
-      text-transform: uppercase; color: var(--text-subtle);
+      font-family: var(--mono);
+      font-size: .68rem; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--chili);
       margin-bottom: 1.25rem; display: flex; align-items: center; gap: .4rem;
     }
 
     .pick-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); overflow: hidden;
-      box-shadow: var(--shadow-md); max-width: 520px;
+      background: var(--bg); border-radius: 6px;
+      border: 2px solid var(--ink); overflow: hidden;
+      box-shadow: 6px 6px 0 rgba(22,22,22,.9); max-width: 520px;
       animation: pick-in .25s cubic-bezier(.32,.72,0,1);
     }
     @keyframes pick-in {
-      from { opacity: 0; transform: translateY(10px) scale(.98); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
+      from { opacity: 0; transform: rotate(-3deg) translateY(16px); }
+      to   { opacity: 1; transform: rotate(0) translateY(0); }
     }
     .pick-img {
       width: 100%; height: 280px; object-fit: cover; display: block;
-      background: var(--gray-light);
+      background: var(--line); border-bottom: 2px solid var(--ink);
     }
     .pick-img.no-img { height: 60px; }
     .pick-body { padding: 1.35rem 1.5rem 1.1rem; }
     .pick-name {
-      font-size: 1.6rem; font-weight: 900; letter-spacing: -.05em;
+      font-family: var(--display);
+      font-size: 1.7rem; font-weight: 800; letter-spacing: -.03em;
       line-height: 1.1; margin-bottom: .4rem;
     }
     .pick-name a { color: inherit; text-decoration: none; }
     .pick-name a:hover { text-decoration: underline; }
     .pick-meta {
-      font-size: .82rem; color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: .76rem; color: var(--ink-muted);
       display: flex; gap: .4rem; flex-wrap: wrap; align-items: center;
       margin-bottom: .35rem;
     }
@@ -127,12 +136,12 @@
     .pick-btn-again:hover { background: var(--gray-light); }
     .pick-btn-yelp {
       padding: .65rem 1.1rem; font-size: .88rem; font-weight: 700;
-      background: var(--blue); color: #fff; border: none;
-      border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font);
+      background: var(--chili); color: #fff; border: 1.5px solid var(--ink);
+      border-radius: var(--radius); cursor: pointer; font-family: var(--body);
       text-decoration: none; display: inline-flex; align-items: center;
-      transition: opacity .1s;
+      transition: background .1s;
     }
-    .pick-btn-yelp:hover { opacity: .88; text-decoration: none; }
+    .pick-btn-yelp:hover { background: var(--blue-hover); text-decoration: none; }
     .pick-btn-dir {
       padding: .65rem 1.1rem; font-size: .88rem; font-weight: 700;
       background: transparent; border: 1.5px solid var(--border);

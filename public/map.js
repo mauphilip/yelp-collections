@@ -79,12 +79,13 @@ export function renderMarkers(businesses, onMarkerClick) {
 
     const num = biz._num ?? ''
     const isClosed = biz.closed_status === 'closed'
+    const isBeen = biz.status === 'been'
     const fontSize = String(num).length >= 3 ? 9 : 11
     const size = 26
 
     const icon = L.divIcon({
       className: '',
-      html: `<div class="num-pin${isClosed ? ' closed' : ''}" data-id="${biz.id}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${num}</div>`,
+      html: `<div class="num-pin${isClosed ? ' closed' : isBeen ? ' been' : ''}" data-id="${biz.id}" style="width:${size}px;height:${size}px;font-size:${fontSize}px">${num}</div>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
     })

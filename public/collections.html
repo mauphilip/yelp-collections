@@ -6,117 +6,112 @@
   <title>My Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
   <style>
+    /* Map pins — square ink-bordered, mono numbers, hard offset shadow */
     .num-pin {
-      border-radius: 6px; background: #0047FF; color: #fff;
-      font: 700 11px/1 'Inter', sans-serif; display: flex;
+      border-radius: 6px; background: var(--chili); color: #fff;
+      font: 600 11px/1 'Spline Sans Mono', ui-monospace, monospace; display: flex;
       align-items: center; justify-content: center; text-align: center;
-      box-shadow: 0 2px 6px rgba(0,71,255,.4), 0 0 0 2px #fff;
-      cursor: pointer; transition: transform .15s; letter-spacing: -.02em;
+      border: 2px solid var(--ink); box-shadow: 0 2px 0 rgba(22,22,22,.8);
+      cursor: pointer; transition: transform .12s;
     }
     .num-pin:hover { transform: scale(1.12); }
-    .num-pin.highlighted { background: #0a0a0a !important; transform: scale(1.2); box-shadow: 0 2px 8px rgba(0,0,0,.4), 0 0 0 2px #fff; }
-    .num-pin.closed { background: #f03e3e; }
+    .num-pin.highlighted { background: var(--ink) !important; transform: scale(1.2); box-shadow: 0 2px 0 rgba(22,22,22,.8); }
+    .num-pin.been { background: var(--pistachio); }
+    .num-pin.closed { background: var(--ink-subtle); }
     .near-me-btn, .reset-view-btn {
-      background: #fff; border: 1px solid #ddd; border-radius: 6px;
-      padding: .3rem .7rem; font-size: .72rem; font-weight: 700; cursor: pointer;
-      font-family: Inter, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.12); margin-top: 8px;
+      background: var(--surface); border: 1.5px solid var(--ink); border-radius: var(--radius);
+      padding: .35rem .7rem; font-size: .72rem; font-weight: 700; cursor: pointer;
+      font-family: var(--body); box-shadow: 0 2px 0 rgba(22,22,22,.85); margin-top: 8px;
+      color: var(--ink); transition: transform .08s, box-shadow .08s;
     }
-    .near-me-btn:hover, .reset-view-btn:hover { background: #f5f5f5; }
-    .reset-view-btn { font-size: .85rem; padding: .28rem .6rem; }
+    .near-me-btn:hover, .reset-view-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 0 rgba(22,22,22,.85); }
+    .reset-view-btn { font-size: .85rem; padding: .3rem .6rem; }
     .user-dot {
-      width: 16px; height: 16px; border-radius: 50%; background: #e03131;
-      border: 2.5px solid #fff; box-shadow: 0 2px 8px rgba(224,49,49,.5); position: relative;
+      width: 16px; height: 16px; border-radius: 50%; background: var(--chili);
+      border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(217,56,30,.5); position: relative;
     }
     .user-dot::before {
       content: ''; position: absolute; top: 50%; left: 50%;
       width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(224,49,49,.18); animation: user-pulse 2s ease-out infinite;
+      background: rgba(217,56,30,.18); animation: user-pulse 2s ease-out infinite;
       transform: translate(-50%,-50%) scale(0.3);
     }
     @keyframes user-pulse {
       0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
       100% { transform: translate(-50%,-50%) scale(1);   opacity: 0; }
     }
-    .card.map-highlighted { outline: 2.5px solid #0047FF; outline-offset: -2px; }
+    .card.map-highlighted { outline: 2.5px solid var(--ink); outline-offset: -2px; }
     .app-body.map-open .card { cursor: pointer; }
-    .open-now-badge {
-      display: inline-block; font-size: .65rem; font-weight: 700;
-      padding: .1rem .42rem; border-radius: 4px;
-      background: #d3f9d8; color: #2b6e38; letter-spacing: .02em;
-    }
-    [data-theme="dark"] .open-now-badge { background: #1a3d22; color: #69db7c; }
-    .closed-now-badge {
-      display: inline-block; font-size: .65rem; font-weight: 700;
-      padding: .1rem .42rem; border-radius: 4px;
-      background: var(--surface); color: var(--text-subtle); letter-spacing: .02em;
-      border: 1px solid var(--border);
-    }
-    #stats-bar {
-      font-size: .75rem; color: var(--text-muted); font-weight: 600;
-      padding: .3rem 1rem; display: flex; gap: 1rem; flex-wrap: wrap;
-      border-bottom: 1px solid var(--border); background: var(--surface);
-    }
-    #stats-bar span { display: flex; align-items: center; gap: .25rem; }
 
-    /* Random picker modal */
+    /* Stats → ledger line: mono text with chili ● separators */
+    #stats-bar {
+      font-family: var(--mono); font-size: .72rem; color: var(--ink-muted); font-weight: 400;
+      padding: .35rem 1.25rem .6rem; display: flex; gap: 1.4rem; flex-wrap: wrap; align-items: center;
+      border-bottom: 1px solid var(--line); background: var(--bg);
+    }
+    #stats-bar .ledger-item b { color: var(--ink); font-weight: 600; }
+    #stats-bar .dot { color: var(--chili); }
+    #stats-bar .ledger-item.closed { cursor: pointer; }
+    #stats-bar .ledger-item.closed:hover { color: var(--chili); }
+
+    /* Random picker modal — "Tonight's Pick" deals in */
     #random-modal {
       display: none; position: fixed; inset: 0; z-index: 9000;
-      background: rgba(0,0,0,.6); backdrop-filter: blur(6px);
+      background: rgba(22,22,22,.55); backdrop-filter: blur(3px);
       align-items: center; justify-content: center; padding: 1rem;
     }
-    #random-modal.open { display: flex; animation: modal-in .2s cubic-bezier(.32,.72,0,1); }
-    @keyframes modal-in {
-      from { opacity: 0; transform: scale(.94) translateY(8px); }
-      to   { opacity: 1; transform: scale(1) translateY(0); }
+    #random-modal.open { display: flex; }
+    #random-modal.open #random-modal-card { animation: deal .25s cubic-bezier(.32,.72,0,1); }
+    @keyframes deal {
+      from { opacity: 0; transform: rotate(-3deg) translateY(16px); }
+      to   { opacity: 1; transform: rotate(0) translateY(0); }
     }
     #random-modal-card {
-      background: var(--bg); border-radius: var(--radius);
-      box-shadow: 0 24px 60px rgba(0,0,0,.35); width: 100%; max-width: 460px;
-      overflow: hidden; position: relative; border: 1px solid var(--border);
+      background: var(--bg); border-radius: 6px;
+      box-shadow: 6px 6px 0 rgba(22,22,22,.9); width: 100%; max-width: 440px;
+      overflow: hidden; position: relative; border: 2px solid var(--ink);
     }
-    #random-modal-img { width: 100%; height: 260px; object-fit: cover; display: block; background: var(--surface); }
+    #random-modal-img { width: 100%; height: 220px; object-fit: cover; display: block; background: var(--surface); border-bottom: 2px solid var(--ink); }
     #random-modal-img.no-img { height: 80px; }
-    #random-modal-body { padding: 1.25rem 1.35rem 1rem; }
+    #random-modal-body { padding: 0 0 .25rem; }
     #random-modal-header {
-      font-size: .68rem; font-weight: 800; letter-spacing: .1em;
-      text-transform: uppercase; color: var(--text-subtle); margin-bottom: .5rem;
+      font-family: var(--mono); font-size: .66rem; font-weight: 600; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--chili); padding: 1rem 1.2rem 0;
       display: flex; align-items: center; gap: .4rem;
     }
-    #random-modal-name { font-size: 1.45rem; font-weight: 800; letter-spacing: -.04em; line-height: 1.15; margin-bottom: .4rem; }
+    #random-modal-name { font-family: var(--display); font-size: 1.7rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; padding: .25rem 1.2rem 0; }
     #random-modal-name a { color: inherit; text-decoration: none; }
-    #random-modal-name a:hover { text-decoration: underline; }
-    #random-modal-meta { font-size: .82rem; color: var(--text-muted); margin-bottom: .3rem; display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
-    #random-modal-location { font-size: .8rem; color: var(--text-subtle); margin-bottom: .5rem; }
-    #random-modal-tags { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .5rem; }
-    #random-modal-notes { font-size: .8rem; color: var(--text-muted); }
+    #random-modal-name a:hover { color: var(--chili); }
+    #random-modal-meta { font-family: var(--mono); font-size: .74rem; color: var(--ink-muted); padding: .5rem 1.2rem 0; display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+    #random-modal-location { font-size: .8rem; color: var(--ink-subtle); padding: .35rem 1.2rem 0; }
+    #random-modal-tags { display: flex; gap: .3rem; flex-wrap: wrap; padding: .5rem 1.2rem 0; }
+    #random-modal-notes { font-size: .8rem; color: var(--ink-muted); padding: .5rem 1.2rem .9rem; font-style: italic; }
     #random-modal-actions {
-      display: flex; gap: .6rem; padding: .85rem 1.35rem 1.1rem;
-      border-top: 1px solid var(--border);
+      display: flex; border-top: 2px solid var(--ink);
     }
     #random-modal-actions .btn-again {
-      flex: 1; padding: .6rem; font-size: .88rem; font-weight: 700;
-      background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm); cursor: pointer; color: var(--text);
-      font-family: var(--font); transition: background .1s;
+      flex: 1; padding: .85rem; font-size: .88rem; font-weight: 700;
+      background: var(--surface); border: none; border-right: 2px solid var(--ink);
+      cursor: pointer; color: var(--ink);
+      font-family: var(--body); transition: background .1s;
     }
-    #random-modal-actions .btn-again:hover { background: var(--gray-light); }
+    #random-modal-actions .btn-again:hover { background: var(--line); }
     #random-modal-actions .btn-confirm {
-      flex: 2; padding: .6rem; font-size: .88rem; font-weight: 700;
-      background: var(--blue); color: #fff; border: none;
-      border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); transition: opacity .1s;
+      flex: 1.4; padding: .85rem; font-size: .88rem; font-weight: 700;
+      background: var(--chili); color: #fff; border: none;
+      cursor: pointer; font-family: var(--body); transition: background .1s;
     }
-    #random-modal-actions .btn-confirm:hover { opacity: .88; }
+    #random-modal-actions .btn-confirm:hover { background: var(--blue-hover); }
     #random-modal-close {
-      position: absolute; top: .7rem; right: .7rem;
-      background: rgba(0,0,0,.45); color: #fff; border: none;
-      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
-      font-size: .9rem; line-height: 1; display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(4px);
+      position: absolute; top: .6rem; right: .6rem; z-index: 2;
+      background: var(--bg); color: var(--ink); border: 1.5px solid var(--ink);
+      width: 26px; height: 26px; border-radius: var(--radius); cursor: pointer;
+      font-size: .8rem; line-height: 1; display: flex; align-items: center; justify-content: center;
     }
   </style>
 </head>
@@ -434,6 +429,43 @@ function refreshCityChips() {
   ).join('')
 }
 
+// ── Open-flag time suffix ──────────────────────────────────────────────────
+// Reads today's closing / next opening time straight off the stored Yelp
+// hours[0].open[] segments (same object that carries is_open_now) — no API call.
+function fmtFlagTime(hhmm) {
+  if (!hhmm || hhmm.length < 3) return ''
+  let h = parseInt(hhmm.slice(0, 2), 10)
+  const m = hhmm.slice(2)
+  const ap = h >= 12 ? 'p' : 'a'
+  h = h % 12 || 12
+  return `${h}${m !== '00' ? ':' + m : ''}${ap}`
+}
+function flagTimeSuffix(biz, openNow) {
+  const open = biz.hours?.[0]?.open
+  if (!open?.length) return ''
+  const now = new Date()
+  const day = (now.getDay() + 6) % 7 // Yelp: 0=Mon … 6=Sun
+  const time = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0')
+  if (openNow) {
+    for (const s of open) {
+      if (s.day !== day) continue
+      const inSeg = s.is_overnight ? (time >= s.start || time < s.end) : (time >= s.start && time < s.end)
+      if (inSeg && s.end) return ' · til ' + fmtFlagTime(s.end)
+    }
+    return ''
+  }
+  // closed now → soonest upcoming opening (today later, else following days)
+  for (let d = 0; d < 7; d++) {
+    const checkDay = (day + d) % 7
+    const segs = open.filter(s => s.day === checkDay).sort((a, b) => a.start.localeCompare(b.start))
+    for (const s of segs) {
+      if (d === 0 && s.start <= time) continue
+      return ' · opens ' + fmtFlagTime(s.start)
+    }
+  }
+  return ''
+}
+
 // ── Card rendering ────────────────────────────────────────────────────────
 function renderCard(biz, index) {
   const num = String(index + 1)
@@ -446,12 +478,14 @@ function renderCard(biz, index) {
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>'
     : biz.closed_status === 'unknown' ? '<span class="warn-badge">Check</span>' : ''
 
+  // Open/closed-now flag, pinned to the image; append today's hours when present
   const isOpenNow = biz.hours?.[0]?.is_open_now
-  const openNowBadge = !closed && isOpenNow === true ? '<span class="open-now-badge">Open now</span>'
-    : !closed && isOpenNow === false ? '<span class="closed-now-badge">Closed now</span>' : ''
+  const openFlag = !closed && isOpenNow === true ? `<span class="open-flag">OPEN${flagTimeSuffix(biz, true)}</span>`
+    : !closed && isOpenNow === false ? `<span class="open-flag closed">CLOSED${flagTimeSuffix(biz, false)}</span>` : ''
 
-  const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>'
-    : biz.status === 'skip' ? '<span class="status-badge skip">Skip</span>' : ''
+  // Status rubber-stamp overlaid on the image; "want" shows no stamp (absence = the signal)
+  const stamp = biz.status === 'been' ? '<span class="stamp been">Been ✓</span>'
+    : biz.status === 'skip' ? '<span class="stamp skip">Skip</span>' : ''
 
   const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
@@ -497,10 +531,14 @@ function renderCard(biz, index) {
     </div>`
 
   return `
-    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}" data-num="${index + 1}">
-      <span class="card-num">${num}</span>
-      ${closedBadge}
-      <div class="card-img-wrap">${img}</div>
+    <div class="card${closed ? ' closed' : ''}${biz.status === 'skip' ? ' skipped' : ''}" data-id="${biz.id}" data-num="${index + 1}">
+      <div class="card-img-wrap">
+        ${img}
+        <span class="card-num">${num}</span>
+        ${closedBadge}
+        ${stamp}
+        ${openFlag}
+      </div>
       <div class="card-body">
         <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a></div>
         <div class="card-meta">
@@ -510,8 +548,7 @@ function renderCard(biz, index) {
           <span class="cat">${esc(categoryLabel(biz))}</span>
         </div>
         ${biz.location?.city ? `<div class="card-location">${esc(biz.location.city)}${biz.location.state ? ', '+esc(biz.location.state) : ''}${website}</div>` : ''}
-        ${tags ? `<div class="card-tags" style="margin-top:.35rem;">${tags}</div>` : ''}
-        ${statusBadge || openNowBadge ? `<div style="margin-top:.25rem;display:flex;gap:.35rem;flex-wrap:wrap;">${statusBadge}${openNowBadge}</div>` : ''}
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
         ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
       </div>
       <div class="card-actions">
@@ -829,14 +866,17 @@ function renderStatsBar() {
   const been = all.filter(b => b.status === 'been').length
   const skip = all.filter(b => b.status === 'skip').length
   const closed = all.filter(b => b.closed_status === 'closed').length
+  const total = all.length
   const bar = document.getElementById('stats-bar')
   bar.style.display = 'flex'
+  const sep = '<span class="dot">●</span>'
   bar.innerHTML = [
-    `<span class="stat-pill want">🍽 ${want} want to go</span>`,
-    been   ? `<span class="stat-pill been">✓ ${been} been</span>` : '',
-    skip   ? `<span class="stat-pill skip">— ${skip} skip</span>` : '',
-    closed ? `<span class="stat-pill closed" id="closed-pill" title="Click to remove all closed">✕ ${closed} closed</span>` : '',
-  ].filter(Boolean).join('')
+    `<span class="ledger-item"><b>${total}</b> place${total !== 1 ? 's' : ''}</span>`,
+    `<span class="ledger-item"><b>${want}</b> want to go</span>`,
+    been   ? `<span class="ledger-item"><b>${been}</b> been</span>` : '',
+    skip   ? `<span class="ledger-item"><b>${skip}</b> skip</span>` : '',
+    closed ? `<span class="ledger-item closed" id="closed-pill" title="Click to remove all closed"><b>${closed}</b> closed ✕</span>` : '',
+  ].filter(Boolean).join(sep)
 
   document.getElementById('closed-pill')?.addEventListener('click', () => {
     if (!confirm(`Remove all ${closed} permanently closed places?`)) return

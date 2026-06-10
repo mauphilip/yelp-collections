@@ -6,7 +6,7 @@
   <title>Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -75,7 +75,8 @@ function renderCard(biz, tagMeta, index) {
     ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
     : '<div class="card-img-placeholder"></div>'
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>' : ''
-  const statusBadge = biz.status === 'been' ? '<span class="status-badge been">Been</span>' : ''
+  const stamp = biz.status === 'been' ? '<span class="stamp been">Been ✓</span>'
+    : biz.status === 'skip' ? '<span class="stamp skip">Skip</span>' : ''
   const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const tags = (biz.tags || []).map(t => {
@@ -83,10 +84,13 @@ function renderCard(biz, tagMeta, index) {
     return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${t}</span>`
   }).join('')
   return `
-    <div class="card${closed ? ' closed' : ''}" data-id="${biz.id}">
-      <span class="card-num">${index + 1}</span>
-      ${closedBadge}
-      <div class="card-img-wrap">${img}</div>
+    <div class="card${closed ? ' closed' : ''}${biz.status === 'skip' ? ' skipped' : ''}" data-id="${biz.id}">
+      <div class="card-img-wrap">
+        ${img}
+        <span class="card-num">${index + 1}</span>
+        ${closedBadge}
+        ${stamp}
+      </div>
       <div class="card-body">
         <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
         <div class="card-meta">
@@ -96,8 +100,7 @@ function renderCard(biz, tagMeta, index) {
           <span class="cat">${categoryLabel(biz)}</span>
         </div>
         ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''}</div>` : ''}
-        ${tags ? `<div class="card-tags" style="margin-top:.35rem;">${tags}</div>` : ''}
-        ${statusBadge ? `<div style="margin-top:.25rem;">${statusBadge}</div>` : ''}
+        ${tags ? `<div class="card-tags">${tags}</div>` : ''}
       </div>
       <div class="card-actions">
         <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>

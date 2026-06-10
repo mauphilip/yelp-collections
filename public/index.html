@@ -6,31 +6,46 @@
   <title>Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #080808;
-      --surface: #111;
-      --border: #222;
-      --text: #f0f0f0;
-      --text-muted: #666;
-      --text-subtle: #333;
-      --accent: #4d7aff;
-      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --bg: #F4F4EF;            /* butcher paper */
+      --surface: #FFFFFF;
+      --ink: #161616;
+      --ink-muted: #6B6B64;
+      --ink-subtle: #A7A79D;
+      --line: #E2E2D8;
+      --chili: #D9381E;
+      --display: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, sans-serif;
+      --body: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'Spline Sans Mono', ui-monospace, monospace;
     }
 
     html, body {
       height: 100%;
-      font-family: var(--font);
+      font-family: var(--body);
       background: var(--bg);
-      color: var(--text);
+      color: var(--ink);
       -webkit-font-smoothing: antialiased;
       overflow: hidden;
+      letter-spacing: -.005em;
     }
 
-    /* Centered content */
+    /* Faint ledger grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: .5;
+      pointer-events: none;
+    }
+
     .hero {
       display: flex;
       flex-direction: column;
@@ -39,102 +54,78 @@
       height: 100dvh;
       text-align: center;
       padding: 2rem;
-      gap: 1.25rem;
+      gap: 1.1rem;
       position: relative;
+      z-index: 1;
     }
 
     .hero-eyebrow {
-      font-size: .7rem;
-      font-weight: 700;
+      font-family: var(--mono);
+      font-size: .72rem;
+      font-weight: 600;
       letter-spacing: .18em;
       text-transform: uppercase;
-      color: var(--text-subtle);
+      color: var(--chili);
     }
 
     .hero-title {
-      font-size: clamp(3rem, 10vw, 7rem);
-      font-weight: 900;
-      letter-spacing: -.05em;
-      line-height: 1;
-      color: var(--text);
-      /* subtle shimmer effect */
-      background: linear-gradient(135deg, #fff 0%, #888 60%, #fff 100%);
-      background-size: 200% auto;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: shimmer 6s linear infinite;
+      font-family: var(--display);
+      font-size: clamp(3rem, 11vw, 7.5rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+      line-height: .95;
+      color: var(--ink);
     }
 
-    @keyframes shimmer {
-      0%   { background-position: 200% center; }
-      100% { background-position: -200% center; }
+    .hero-rule {
+      width: 36px;
+      height: 2px;
+      background: var(--ink);
+      border: none;
     }
 
     .hero-sub {
       font-size: 1rem;
       font-weight: 400;
-      color: var(--text-muted);
-      letter-spacing: -.01em;
-      max-width: 320px;
+      color: var(--ink-muted);
+      max-width: 340px;
       line-height: 1.6;
     }
 
-    /* Thin decorative line */
-    .hero-rule {
-      width: 32px;
-      height: 1px;
-      background: var(--text-subtle);
-      border: none;
-    }
-
-    /* Enter CTA */
+    /* Enter CTA — ink-filled, bordered, hard offset shadow */
     .enter-btn {
-      display: inline-block;
-      margin-top: .5rem;
-      font-size: 1.1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .6rem;
+      font-family: var(--body);
+      font-size: 1rem;
       font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
+      letter-spacing: .02em;
       color: var(--bg);
-      background: var(--text);
+      background: var(--ink);
       text-decoration: none;
-      border-radius: 999px;
-      padding: .85rem 2.75rem;
-      transition: opacity .2s, transform .15s;
+      border: 1.5px solid var(--ink);
+      border-radius: 4px;
+      padding: .8rem 2.5rem;
+      box-shadow: 0 3px 0 rgba(22,22,22,.85);
+      transition: transform .08s, box-shadow .08s;
     }
-    .enter-btn:hover { opacity: .85; transform: translateY(-1px); text-decoration: none; }
+    .enter-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 0 rgba(22,22,22,.85); text-decoration: none; }
+    .enter-btn:active { transform: translateY(0); box-shadow: none; }
 
-    /* Subtle grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(var(--text-subtle) 1px, transparent 1px),
-        linear-gradient(90deg, var(--text-subtle) 1px, transparent 1px);
-      background-size: 80px 80px;
-      opacity: .07;
-      pointer-events: none;
-    }
-
-    /* Radial fade to make center pop */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, var(--bg) 100%);
-      pointer-events: none;
+    @media (prefers-reduced-motion: reduce) {
+      .enter-btn { transition: none; }
     }
   </style>
 </head>
 <body>
   <main class="hero">
-    <p class="hero-eyebrow">Private</p>
+    <p class="hero-eyebrow">Private · Field Guide</p>
     <h1 class="hero-title">Collections</h1>
     <hr class="hero-rule">
     <p class="hero-sub">A curated list of places worth visiting.</p>
-    <a href="collections.html" class="enter-btn">Enter</a>
+    <a href="collections.html" class="enter-btn">Enter →</a>
   </main>
 </body>
 </html>

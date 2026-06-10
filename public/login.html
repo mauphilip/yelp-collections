@@ -6,47 +6,42 @@
   <title>Login · Collections</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #080808;
-      --surface: #111;
-      --border: #2a2a2a;
-      --border-focus: #555;
-      --text: #f0f0f0;
-      --text-muted: #666;
-      --text-subtle: #333;
-      --red: #f03e3e;
-      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --bg: #F4F4EF;            /* butcher paper */
+      --surface: #FFFFFF;
+      --ink: #161616;
+      --ink-muted: #6B6B64;
+      --ink-subtle: #A7A79D;
+      --line: #E2E2D8;
+      --chili: #D9381E;
+      --display: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, sans-serif;
+      --body: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'Spline Sans Mono', ui-monospace, monospace;
     }
 
     html, body {
       height: 100%;
-      font-family: var(--font);
+      font-family: var(--body);
       background: var(--bg);
-      color: var(--text);
+      color: var(--ink);
       -webkit-font-smoothing: antialiased;
+      letter-spacing: -.005em;
     }
 
-    /* Subtle grid */
+    /* Faint ledger grid */
     body::before {
       content: '';
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(var(--text-subtle) 1px, transparent 1px),
-        linear-gradient(90deg, var(--text-subtle) 1px, transparent 1px);
-      background-size: 80px 80px;
-      opacity: .07;
-      pointer-events: none;
-    }
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 0%, var(--bg) 100%);
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: .5;
       pointer-events: none;
     }
 
@@ -54,15 +49,16 @@
       position: fixed;
       top: 1.25rem;
       left: 1.5rem;
-      font-size: .8rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: .72rem;
+      font-weight: 500;
+      letter-spacing: .04em;
+      color: var(--ink-muted);
       text-decoration: none;
-      letter-spacing: .01em;
-      transition: color .2s;
+      transition: color .15s;
       z-index: 10;
     }
-    .back-link:hover { color: var(--text); text-decoration: none; }
+    .back-link:hover { color: var(--ink); text-decoration: none; }
 
     .login-wrap {
       display: flex;
@@ -77,26 +73,34 @@
 
     .login-box {
       width: 100%;
-      max-width: 320px;
+      max-width: 330px;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+      background: var(--surface);
+      border: 1.5px solid var(--ink);
+      border-radius: 4px;
+      box-shadow: 4px 4px 0 rgba(22,22,22,.85);
+      padding: 2rem 1.75rem;
     }
 
     .login-header {
       text-align: center;
     }
     .login-logo {
-      font-size: 1.1rem;
-      font-weight: 900;
-      letter-spacing: -.04em;
-      text-transform: uppercase;
-      color: var(--text);
-      margin-bottom: .5rem;
+      font-family: var(--display);
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      color: var(--ink);
+      margin-bottom: .4rem;
     }
     .login-sub {
-      font-size: .82rem;
-      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
     }
 
     .login-form {
@@ -108,22 +112,22 @@
     .login-input {
       width: 100%;
       padding: .75rem 1rem;
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
+      background: var(--bg);
+      border: 1.5px solid var(--ink);
+      border-radius: 4px;
       font-size: 1rem;
-      font-family: var(--font);
-      color: var(--text);
+      font-family: var(--body);
+      color: var(--ink);
       letter-spacing: .15em;
       text-align: center;
-      transition: border-color .2s;
+      transition: box-shadow .12s;
       outline: none;
     }
-    .login-input::placeholder { letter-spacing: normal; color: var(--text-muted); }
-    .login-input:focus { border-color: var(--border-focus); }
+    .login-input::placeholder { letter-spacing: normal; color: var(--ink-subtle); }
+    .login-input:focus { box-shadow: 0 2px 0 rgba(22,22,22,.85); }
     .login-input.shake {
       animation: shake .4s ease;
-      border-color: var(--red);
+      border-color: var(--chili);
     }
 
     @keyframes shake {
@@ -135,25 +139,32 @@
     .login-btn {
       width: 100%;
       padding: .75rem 1rem;
-      background: var(--text);
+      background: var(--ink);
       color: var(--bg);
-      border: none;
-      border-radius: 10px;
+      border: 1.5px solid var(--ink);
+      border-radius: 4px;
       font-size: .875rem;
       font-weight: 700;
-      font-family: var(--font);
+      font-family: var(--body);
       cursor: pointer;
-      letter-spacing: -.01em;
-      transition: opacity .15s;
+      letter-spacing: .01em;
+      box-shadow: 0 3px 0 rgba(22,22,22,.85);
+      transition: transform .08s, box-shadow .08s;
     }
-    .login-btn:hover { opacity: .88; }
-    .login-btn:active { opacity: .75; }
+    .login-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 0 rgba(22,22,22,.85); }
+    .login-btn:active { transform: translateY(0); box-shadow: none; }
 
     .login-error {
       font-size: .78rem;
-      color: var(--red);
+      color: var(--chili);
+      font-weight: 600;
       text-align: center;
       min-height: 1.1em;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .login-btn, .login-input { transition: none; }
+      .login-input.shake { animation: none; }
     }
   </style>
 </head>
