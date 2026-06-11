@@ -555,6 +555,23 @@ alert(links.length + ' URLs copied!');</code></div>
       </div><!-- /tab-closed -->
     </details>
 
+    <!-- ─── Section 2b: Refresh Hours ──────────────────────── -->
+    <details>
+      <summary class="sync-section-header">🕐 Refresh Hours</summary>
+      <div class="admin-section">
+        <h2>Refresh Missing Hours</h2>
+        <p class="section-desc">Re-fetches Yelp data for businesses that have no hours on record — usually those imported before hours were being saved. Businesses that already have hours are skipped.</p>
+        <div class="api-notice">⚠ Uses 1 Yelp API call per business refreshed. Watch your daily quota.</div>
+        <p id="hours-missing-count" style="font-size:.82rem;color:var(--text-muted);margin:.75rem 0;"></p>
+        <button id="btn-refresh-hours" class="btn-primary" style="max-width:240px;margin-bottom:1.25rem;" disabled>Refresh missing hours</button>
+        <div id="hours-refresh-progress" style="display:none;">
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="hours-bar"></div></div>
+          <p id="hours-refresh-msg" style="font-size:.8rem;color:var(--text-muted);margin-top:.35rem;"></p>
+        </div>
+        <div id="hours-refresh-results"></div>
+      </div>
+    </details>
+
     <!-- ─── Section 3: Sync Data ─────────────────────────── -->
     <details>
       <summary class="sync-section-header">🔄 Sync Data</summary>
@@ -764,7 +781,7 @@ function activateTab(tab) {
   document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
   // Only toggle top-level panels (not nested sub-panels inside import-sync)
   document.querySelectorAll('#admin-main > .admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab))
-  if (tab === 'import-sync')  refreshClosedStats()
+  if (tab === 'import-sync')  { refreshClosedStats(); initRefreshHours() }
   if (tab === 'tags')         { renderTagsTab(); renderSuggestedTags() }
   if (tab === 'connections')  initConnectionsTab()
   if (tab === 'stats')        renderStatsTab()
@@ -1008,6 +1025,7 @@ function renderCardRow(biz) {
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="been" style="font-size:.7rem;padding:.15rem .4rem;">Been</button>
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="skip" style="font-size:.7rem;padding:.15rem .4rem;">Skip</button>
       <button class="btn-sm" data-remove="${biz.id}" style="font-size:.7rem;padding:.15rem .4rem;color:var(--red);">✕</button>
+      <button class="btn-sm" data-refresh-id="${biz.id}" title="Refresh hours from Yelp" style="font-size:.7rem;padding:.15rem .4rem;">↻</button>
     </span>
   </div>`
 }
@@ -1069,6 +1087,31 @@ document.getElementById('cards').addEventListener('click', e => {
   }
   const removeId = e.target.dataset.remove; if (removeId) { removeBusiness(removeId); render(); return }
   const statusId = e.target.dataset.statusId; if (statusId) { updateBusiness(statusId, { status: e.target.dataset.statusVal }); render(); return }
+  const refreshId = e.target.dataset.refreshId
+  if (refreshId) {
+    const btn = e.target
+    btn.disabled = true; btn.textContent = '…'
+    ;(async () => {
+      try {
+        const result = await yelpFetch(`/businesses/${refreshId}`)
+        if (result.status === 429) {
+          btn.textContent = '⏳'
+          await new Promise(r => setTimeout(r, (result.retryAfter || 30) * 1000))
+          const retry = await yelpFetch(`/businesses/${refreshId}`)
+          if (retry.status !== 200) throw new Error('rate limit')
+          result.data = retry.data
+        }
+        if (!result.data) throw new Error('no data')
+        batchPatchCollection([{ id: refreshId, fresh: result.data }])
+        btn.textContent = '✓'; btn.style.color = 'var(--green)'; btn.disabled = false
+        setTimeout(() => { btn.textContent = '↻'; btn.style.color = '' }, 2500)
+      } catch {
+        btn.textContent = '!'; btn.style.color = 'var(--red)'; btn.disabled = false
+        setTimeout(() => { btn.textContent = '↻'; btn.style.color = '' }, 2500)
+      }
+    })()
+    return
+  }
   const tagRemove = e.target.dataset.tag; if (tagRemove) { removeTag(e.target.dataset.id, tagRemove); render(); return }
   const addTagId = e.target.dataset.addTag
   if (addTagId) { openTagPopover(addTagId, e.target); return }
@@ -1734,6 +1777,56 @@ document.getElementById('btn-run-closed-check').addEventListener('click', () => 
     }
   )
 })
+
+// ── Refresh Hours ─────────────────────────────────────────────────────────
+function initRefreshHours() {
+  const countEl   = document.getElementById('hours-missing-count')
+  const btn       = document.getElementById('btn-refresh-hours')
+  if (!countEl || !btn) return
+  const missing = loadCollection().filter(b => !b.not_found && !b.hours?.length)
+  if (!missing.length) {
+    countEl.textContent = '✓ All businesses already have hours data.'
+    btn.disabled = true
+    return
+  }
+  countEl.textContent = `${missing.length} business${missing.length !== 1 ? 'es' : ''} missing hours data.`
+  btn.textContent = `Refresh ${missing.length} business${missing.length !== 1 ? 'es' : ''}`
+  btn.disabled = false
+  btn.onclick = async () => {
+    btn.disabled = true
+    const progressEl  = document.getElementById('hours-refresh-progress')
+    const barEl       = document.getElementById('hours-bar')
+    const msgEl       = document.getElementById('hours-refresh-msg')
+    const resultsEl   = document.getElementById('hours-refresh-results')
+    progressEl.style.display = 'block'
+    resultsEl.innerHTML = ''
+    const patches = []
+    for (let i = 0; i < missing.length; i++) {
+      const biz = missing[i]
+      const pct = Math.round(((i + 1) / missing.length) * 100)
+      barEl.style.width = pct + '%'
+      msgEl.textContent = `${i + 1} / ${missing.length} — ${biz.name}`
+      try {
+        let result = await yelpFetch(`/businesses/${biz.id}`)
+        if (result.status === 429) {
+          msgEl.textContent = `Rate limited — waiting ${result.retryAfter || 30}s…`
+          await new Promise(r => setTimeout(r, (result.retryAfter || 30) * 1000))
+          result = await yelpFetch(`/businesses/${biz.id}`)
+        }
+        if (result.data) patches.push({ id: biz.id, fresh: result.data })
+      } catch {}
+      await new Promise(r => setTimeout(r, 300))
+    }
+    if (patches.length) batchPatchCollection(patches)
+    barEl.style.width = '100%'
+    msgEl.textContent = `Done — ${patches.length} of ${missing.length} refreshed.`
+    resultsEl.innerHTML = `<p style="font-size:.82rem;color:var(--green);margin-top:.5rem;">✓ Hours data updated for ${patches.length} business${patches.length !== 1 ? 'es' : ''}.</p>`
+    initRefreshHours()
+    render()
+  }
+}
+
+initRefreshHours()
 
 // ── Cache debug ────────────────────────────────────────────────────────────
 function renderCacheDebug() {

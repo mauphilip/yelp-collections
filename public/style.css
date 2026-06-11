@@ -19,8 +19,8 @@
   --line-strong: #161616;
 
   /* Accents */
-  --chili: #D9381E;         /* primary accent — chili oil */
-  --chili-soft: #FBE9E5;
+  --chili: #34529C;         /* dusty cobalt — primary accent */
+  --chili-soft: #EBEFF6;
   --pistachio: #5F6B3C;     /* open now / positive (NOT "been" — been is ink/gray) */
   --pistachio-soft: #EEF0E2;
   --mustard: #C98A12;       /* want-to-go */
@@ -34,10 +34,10 @@
   --border: var(--line);
   --border-subtle: #EFEFE8;
   --blue: var(--chili);
-  --blue-hover: #BC2C14;
+  --blue-hover: #283F78;
   --blue-light: var(--chili-soft);
-  --blue-subtle: #F5D9D2;
-  --red: var(--chili);
+  --blue-subtle: #D6DFF0;
+  --red: #D9381E;            /* semantic danger — stays red, not accent */
   --yellow: var(--mustard);
   --green: var(--pistachio);
 
@@ -70,16 +70,16 @@
   --line: #33332E;
   --line-strong: #F0EFE8;
 
-  --chili: #FF5C40;
-  --chili-soft: #3A201B;
+  --chili: #8FA7E0;          /* chalk cobalt — lighter for dark surfaces */
+  --chili-soft: rgba(143,167,224,.14);
   --pistachio: #9BAA6B;
   --pistachio-soft: #232619;
   --mustard: #D9A33A;
 
   --gray-light: #26261F;
   --border-subtle: #26261F;
-  --blue-hover: #FF7358;
-  --blue-subtle: #4A2A22;
+  --blue-hover: #A9BCEA;
+  --blue-subtle: rgba(143,167,224,.12);
 
   --shadow: 0 2px 0 rgba(0,0,0,.9);
   --shadow-hover: 0 4px 0 rgba(0,0,0,.9);
