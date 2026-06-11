@@ -386,6 +386,7 @@
               <button id="btn-search-import" class="btn-primary" style="flex-shrink:0;min-width:100px;white-space:nowrap;">Search</button>
             </div>
             <div id="search-import-results" style="margin-top:.75rem;"></div>
+            <button id="btn-add-manual" class="btn-sm" style="margin-top:.75rem;">＋ Add manually (no Yelp)</button>
           </div>
 
           <!-- Bulk import from Yelp URLs -->
@@ -610,6 +611,30 @@ alert(links.length + ' URLs copied!');</code></div>
       </div><!-- /tab-sync -->
     </details>
 
+    <!-- ─── Section 4: Backup & Restore ──────────────────── -->
+    <details>
+      <summary class="sync-section-header">💾 Backup &amp; Restore</summary>
+      <div class="admin-section">
+        <h2>Backup &amp; Restore</h2>
+        <p class="section-desc">Download your full collection (businesses, tags, notes, statuses) as a JSON file, or restore from a previous backup. Back up regularly — especially before the Yelp API trial ends.</p>
+        <button id="btn-download-backup" class="btn-primary" style="max-width:220px;margin-bottom:1.5rem;">⬇ Download backup</button>
+        <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
+          <p style="font-weight:700;font-size:.88rem;margin-bottom:.6rem;">Restore from file</p>
+          <input id="restore-file" type="file" accept=".json,application/json" style="font-size:.82rem;margin-bottom:.75rem;display:block;">
+          <div style="display:flex;gap:1rem;margin-bottom:.75rem;font-size:.84rem;">
+            <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;">
+              <input type="radio" name="restore-mode" value="merge" checked> Merge (keep current, add new)
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;cursor:pointer;">
+              <input type="radio" name="restore-mode" value="replace"> Replace everything
+            </label>
+          </div>
+          <button id="btn-restore-backup" class="btn-sm" disabled>Import backup</button>
+          <p id="restore-result" style="font-size:.82rem;margin-top:.6rem;"></p>
+        </div>
+      </div>
+    </details>
+
     </div><!-- /tab-import-sync -->
 
     <!-- ══ Tab: Tags ══ -->
@@ -738,6 +763,43 @@ alert(links.length + ' URLs copied!');</code></div>
   </div>
 </div>
 
+<!-- Business add/edit form modal -->
+<div id="biz-form-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;">
+  <div style="background:var(--surface);border:1.5px solid var(--ink);border-radius:var(--radius);padding:1.5rem;max-width:560px;width:100%;box-shadow:0 6px 0 rgba(22,22,22,.85);margin:auto 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h2 id="biz-form-title" style="font-size:1.1rem;font-weight:800;margin:0;">Add business</h2>
+      <button id="biz-form-close" class="btn-sm" aria-label="Close">✕</button>
+    </div>
+    <p id="biz-form-note" style="display:none;font-size:.76rem;color:var(--text-muted);margin:0 0 .75rem;">⚠ For Yelp-imported places, a later "Sync Data" freshness run can overwrite these fields with fresh Yelp values.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+      <input id="bf-name" class="import-input" type="text" placeholder="Name *" style="grid-column:1/-1;margin:0;">
+      <input id="bf-address1" class="import-input" type="text" placeholder="Street address" style="grid-column:1/-1;margin:0;">
+      <input id="bf-city" class="import-input" type="text" placeholder="City" style="margin:0;">
+      <input id="bf-state" class="import-input" type="text" placeholder="State" style="margin:0;">
+      <input id="bf-zip" class="import-input" type="text" placeholder="ZIP" style="margin:0;">
+      <select id="bf-price" class="import-input" style="margin:0;">
+        <option value="">Price…</option><option>$</option><option>$$</option><option>$$$</option><option>$$$$</option>
+      </select>
+      <input id="bf-rating" class="import-input" type="number" min="0" max="5" step="0.1" placeholder="Rating (0–5)" style="margin:0;">
+      <input id="bf-phone" class="import-input" type="tel" placeholder="Phone" style="margin:0;">
+      <input id="bf-categories" class="import-input" type="text" placeholder="Categories (comma-separated)" style="grid-column:1/-1;margin:0;">
+      <input id="bf-website" class="import-input" type="url" placeholder="Website URL" style="grid-column:1/-1;margin:0;">
+      <input id="bf-image" class="import-input" type="url" placeholder="Image URL" style="grid-column:1/-1;margin:0;">
+      <input id="bf-lat" class="import-input" type="text" inputmode="decimal" placeholder="Latitude (optional)" style="margin:0;">
+      <input id="bf-lng" class="import-input" type="text" inputmode="decimal" placeholder="Longitude (optional)" style="margin:0;">
+    </div>
+    <details style="margin-top:.9rem;">
+      <summary style="font-size:.82rem;font-weight:600;cursor:pointer;color:var(--text-muted);padding:.25rem 0;">Hours (optional)</summary>
+      <div id="bf-hours" style="display:flex;flex-direction:column;gap:.35rem;margin-top:.5rem;"></div>
+    </details>
+    <div id="bf-error" style="color:var(--red);font-size:.8rem;min-height:1.1rem;margin-top:.6rem;"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.4rem;">
+      <button id="biz-form-cancel" class="btn-sm">Cancel</button>
+      <button id="biz-form-save" class="btn-primary" style="max-width:140px;">Save</button>
+    </div>
+  </div>
+</div>
+
 <footer class="yelp-attr">Powered by <a href="https://www.yelp.com" target="_blank" rel="noopener">Yelp</a></footer>
 
 <script type="module">
@@ -755,7 +817,12 @@ import {
   geocodeZip,
   getCollectionStats,
   diffYelpFields, applyYelpPatch, batchPatchCollection, yelpFetch,
+  safeColor, isManual, authHeaders, exportBackup, replaceCollection,
 } from './app.js'
+
+// ── Escaping helpers ───────────────────────────────────────────────────────
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function escAttr(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;') }
 
 // ── Dark mode ─────────────────────────────────────────────────────────────
 const darkToggle = document.getElementById('dark-toggle')
@@ -918,8 +985,8 @@ function openBulkTagPopover(anchorEl, mode) {
   pop.className = 'tag-popover'
   pop.innerHTML = `<input type="text" class="tag-popover-search" placeholder="Filter tags…">
     <div class="tag-popover-list">${availTags.map(t => {
-      const c = tagMeta[t]?.color || 'var(--text-subtle)'
-      return `<div class="tag-popover-item" data-tag="${t}" style="--tag-c:${c}">${t}</div>`
+      const c = safeColor(tagMeta[t]?.color)
+      return `<div class="tag-popover-item" data-tag="${escAttr(t)}" style="--tag-c:${c}">${esc(t)}</div>`
     }).join('')}</div>`
   const rect = anchorEl.getBoundingClientRect()
   pop.style.cssText = `position:fixed;top:${rect.bottom+4}px;left:${rect.left}px;z-index:500;`
@@ -966,20 +1033,22 @@ function renderCard(biz) {
     : biz.closed_status === 'closed' ? '<div class="closed-badge">Permanently Closed</div>'
     : biz.closed_status === 'unknown' ? '<div class="warn-badge">Status unknown</div>' : ''
   const imgSrc = getDisplayImage(biz)
-  const img = imgSrc ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">` : '<div class="card-img-placeholder"></div>'
+  const img = imgSrc ? `<img class="card-img" src="${escAttr(imgSrc)}" alt="${escAttr(biz.name)}" loading="lazy">` : '<div class="card-img-placeholder"></div>'
   const checkbox = selectMode ? `<div class="card-checkbox" data-select="${biz.id}">${selectedIds.has(biz.id) ? '✓' : ''}</div>` : ''
   const tagMeta = getTagMeta()
   const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color
+    const color = safeColor(tagMeta[t]?.color, '')
     const style = color ? `background:${color}22;color:${color};border-color:${color}55;` : ''
-    return `<span class="tag" style="${style}">${t}<span class="tag-remove" data-id="${biz.id}" data-tag="${t}">✕</span></span>`
+    return `<span class="tag" style="${style}">${esc(t)}<span class="tag-remove" data-id="${biz.id}" data-tag="${escAttr(t)}">✕</span></span>`
   }).join('')
   const wantActive = biz.status === 'want' ? ' active' : ''
   const beenActive = biz.status === 'been' ? ' active' : ''
   const skipActive = biz.status === 'skip' ? ' active' : ''
-  const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const notesHtml = renderNotes(biz.notes)
+  // Mirrors the user-facing card meta row (collections.html renderCard)
+  const nameHtml = biz.url
+    ? `<a href="${escAttr(biz.url)}" target="_blank" rel="noopener">${esc(biz.name)}</a>`
+    : esc(biz.name)
   return `
     <div class="card${closedClass}${selectedClass}" data-id="${biz.id}" id="card-${biz.id}">
       ${closedBadge}${checkbox}
@@ -989,22 +1058,23 @@ function renderCard(biz) {
         <button class="card-img-edit" data-edit-img="${biz.id}">📷 Change</button>
       </div>
       <div class="card-body">
-        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
+        <div class="card-name">${nameHtml}</div>
         <div class="card-meta">
-          <span class="stars">${starsHtml(biz.rating).replace(/<[^>]+>/g,'')}</span>
-          <span>${biz.review_count} reviews</span>
+          ${biz.rating ? `<span class="stars">★ ${biz.rating}</span>` : ''}
+          ${biz.review_count ? `<span>${biz.review_count}</span>` : ''}
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
-          <span class="cat">${categoryLabel(biz)}</span>
+          <span class="cat">${esc(categoryLabel(biz))}</span>
         </div>
-        <div class="card-meta">${biz.location?.city || ''}</div>
+        <div class="card-meta">${esc(biz.location?.city || '')}</div>
         <div class="card-tags">${tags}<span class="chip" style="font-size:.7rem;padding:.15rem .4rem;" data-add-tag="${biz.id}">+ tag</span></div>
         <div class="card-notes-rendered" data-edit-notes="${biz.id}" title="Click to edit notes">${notesHtml || '<span style="color:var(--text-subtle);font-size:.73rem;">Add notes…</span>'}</div>
-        <textarea class="card-notes" data-id="${biz.id}" rows="3" style="display:none;" placeholder="Notes… use - for bullet lists">${biz.notes || ''}</textarea>
+        <textarea class="card-notes" data-id="${biz.id}" rows="3" style="display:none;" placeholder="Notes… use - for bullet lists">${esc(biz.notes || '')}</textarea>
       </div>
       <div class="card-actions">
         <button class="btn-sm${wantActive}" data-status-id="${biz.id}" data-status-val="want">Want to Go</button>
         <button class="btn-sm${beenActive}" data-status-id="${biz.id}" data-status-val="been">Been</button>
         <button class="btn-sm${skipActive}" data-status-id="${biz.id}" data-status-val="skip">Skip</button>
+        <button class="btn-sm" data-edit-biz="${biz.id}" title="Edit details">✎</button>
       </div>
     </div>`
 }
@@ -1014,18 +1084,19 @@ function renderCardRow(biz) {
   const closedBadge = biz.closed_status === 'closed' ? '<span class="badge-closed">Closed</span>' : ''
   const selectedClass = selectedIds.has(biz.id) ? ' selected' : ''
   return `<div class="card-row${selectedClass}" data-id="${biz.id}">
-    <span class="card-row-name">${biz.name}</span>
-    <span class="card-row-cat" style="color:var(--text-muted);font-size:.78rem;">${categoryLabel(biz)}</span>
+    <span class="card-row-name">${esc(biz.name)}</span>
+    <span class="card-row-cat" style="color:var(--text-muted);font-size:.78rem;">${esc(categoryLabel(biz))}</span>
     <span class="card-row-price" style="color:var(--text-muted);font-size:.78rem;">${biz.price || '—'}</span>
-    <span class="card-row-rating" style="font-size:.78rem;">${biz.rating ? starsHtml(biz.rating) : '—'}</span>
-    <span class="card-row-city" style="color:var(--text-muted);font-size:.78rem;">${biz.location?.city || ''}</span>
+    <span class="card-row-rating" style="font-size:.78rem;"><span class="stars">${biz.rating ? `★ ${biz.rating}` : '—'}</span></span>
+    <span class="card-row-city" style="color:var(--text-muted);font-size:.78rem;">${esc(biz.location?.city || '')}</span>
     <span style="display:flex;gap:.3rem;">${statusBadge}${closedBadge}</span>
     <span style="display:flex;gap:.3rem;">
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="want" style="font-size:.7rem;padding:.15rem .4rem;">Want</button>
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="been" style="font-size:.7rem;padding:.15rem .4rem;">Been</button>
       <button class="btn-sm" data-status-id="${biz.id}" data-status-val="skip" style="font-size:.7rem;padding:.15rem .4rem;">Skip</button>
+      <button class="btn-sm" data-edit-biz="${biz.id}" title="Edit details" style="font-size:.7rem;padding:.15rem .4rem;">✎</button>
       <button class="btn-sm" data-remove="${biz.id}" style="font-size:.7rem;padding:.15rem .4rem;color:var(--red);">✕</button>
-      <button class="btn-sm" data-refresh-id="${biz.id}" title="Refresh hours from Yelp" style="font-size:.7rem;padding:.15rem .4rem;">↻</button>
+      ${isManual(biz) ? '' : `<button class="btn-sm" data-refresh-id="${biz.id}" title="Refresh hours from Yelp" style="font-size:.7rem;padding:.15rem .4rem;">↻</button>`}
     </span>
   </div>`
 }
@@ -1065,7 +1136,7 @@ function render() {
 document.getElementById('cards').addEventListener('click', e => {
   if (selectMode) {
     const card = e.target.closest('.card')
-    if (card && !e.target.closest('a') && !e.target.closest('.card-notes') && !e.target.closest('.card-notes-rendered')) {
+    if (card && !e.target.closest('a') && !e.target.closest('button') && !e.target.closest('.card-notes') && !e.target.closest('.card-notes-rendered')) {
       const id = card.dataset.id
       if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id)
       updateSelectCount(); render(); return
@@ -1087,6 +1158,12 @@ document.getElementById('cards').addEventListener('click', e => {
   }
   const removeId = e.target.dataset.remove; if (removeId) { removeBusiness(removeId); render(); return }
   const statusId = e.target.dataset.statusId; if (statusId) { updateBusiness(statusId, { status: e.target.dataset.statusVal }); render(); return }
+  const editBizId = e.target.dataset.editBiz
+  if (editBizId) {
+    const biz = loadCollection().find(b => b.id === editBizId)
+    if (biz) openBizForm(biz)
+    return
+  }
   const refreshId = e.target.dataset.refreshId
   if (refreshId) {
     const btn = e.target
@@ -1250,7 +1327,7 @@ document.querySelectorAll('.snippet-box').forEach(box => {
           const id = btn.dataset.qi
           btn.textContent = '…'; btn.disabled = true
           try {
-            const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+            const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`, { headers: authHeaders() })
             if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || `HTTP ${res.status}`) }
             const biz = await res.json()
             saveBusiness(biz, [], '', Date.now().toString())
@@ -1484,7 +1561,7 @@ async function runImport(ids, total, alreadyDone, label, importId) {
     let lastStatus = 0
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`, { headers: authHeaders() })
         lastStatus = res.status
         if (res.status === 429) {
           const body = await res.json().catch(() => ({}))
@@ -1783,7 +1860,7 @@ function initRefreshHours() {
   const countEl   = document.getElementById('hours-missing-count')
   const btn       = document.getElementById('btn-refresh-hours')
   if (!countEl || !btn) return
-  const missing = loadCollection().filter(b => !b.not_found && !b.hours?.length)
+  const missing = loadCollection().filter(b => !b.not_found && !isManual(b) && !b.hours?.length)
   if (!missing.length) {
     countEl.textContent = '✓ All businesses already have hours data.'
     btn.disabled = true
@@ -1826,11 +1903,210 @@ function initRefreshHours() {
   }
 }
 
-initRefreshHours()
+// ── Backup & Restore ───────────────────────────────────────────────────────
+document.getElementById('btn-download-backup').addEventListener('click', () => {
+  const backup = exportBackup()
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `yelp-collections-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(a.href)
+})
+
+function validateBackup(obj) {
+  if (!obj || typeof obj !== 'object') return 'Not a valid backup file.'
+  if (!Array.isArray(obj.businesses)) return 'Missing "businesses" array.'
+  for (const b of obj.businesses) {
+    if (typeof b?.id !== 'string' || typeof b?.name !== 'string') return 'Businesses must have string id and name.'
+  }
+  if (obj.tagMeta != null && (typeof obj.tagMeta !== 'object' || Array.isArray(obj.tagMeta))) return '"tagMeta" must be an object.'
+  return null
+}
+
+const restoreFile = document.getElementById('restore-file')
+const restoreBtn = document.getElementById('btn-restore-backup')
+const restoreResult = document.getElementById('restore-result')
+restoreFile.addEventListener('change', () => { restoreBtn.disabled = !restoreFile.files.length; restoreResult.textContent = '' })
+
+restoreBtn.addEventListener('click', async () => {
+  const file = restoreFile.files[0]
+  if (!file) return
+  let parsed
+  try { parsed = JSON.parse(await file.text()) }
+  catch { restoreResult.textContent = '✗ File is not valid JSON.'; restoreResult.style.color = 'var(--red)'; return }
+  const err = validateBackup(parsed)
+  if (err) { restoreResult.textContent = '✗ ' + err; restoreResult.style.color = 'var(--red)'; return }
+
+  const mode = document.querySelector('input[name="restore-mode"]:checked').value
+  const current = loadCollection()
+  const imported = parsed.businesses
+  const importedMeta = parsed.tagMeta || {}
+
+  let finalList, finalMeta, summary
+  if (mode === 'replace') {
+    if (!confirm(`Replace your current collection (${current.length} places) with the backup (${imported.length} places)? This cannot be undone.`)) return
+    finalList = imported
+    finalMeta = importedMeta
+    summary = `Replaced collection — now ${imported.length} places.`
+  } else {
+    // Merge: new ids append; existing ids keep the live record, union tags,
+    // fill empty user fields from the backup. Current tagMeta wins on conflict.
+    const byId = new Map(current.map(b => [b.id, b]))
+    let added = 0, merged = 0
+    for (const imp of imported) {
+      const live = byId.get(imp.id)
+      if (!live) { byId.set(imp.id, imp); added++; continue }
+      const tags = [...new Set([...(live.tags || []), ...(imp.tags || [])])]
+      if (tags.length !== (live.tags || []).length) merged++
+      byId.set(imp.id, {
+        ...live,
+        tags,
+        notes: live.notes || imp.notes || '',
+        custom_image: live.custom_image || imp.custom_image || '',
+        status: (live.status && live.status !== 'want') ? live.status : (imp.status || live.status || 'want'),
+      })
+    }
+    finalList = [...byId.values()]
+    finalMeta = { ...importedMeta, ...getTagMeta() }
+    summary = `Merged — ${added} added, ${merged} updated, ${finalList.length} total.`
+  }
+
+  restoreBtn.disabled = true
+  restoreResult.textContent = 'Restoring…'
+  restoreResult.style.color = 'var(--text-muted)'
+  try {
+    await replaceCollection(finalList, finalMeta)
+    restoreResult.textContent = '✓ ' + summary
+    restoreResult.style.color = 'var(--green)'
+    render(); refreshTagChips()
+  } catch (e) {
+    restoreResult.textContent = '✗ Restore failed to save — try again. (' + e.message + ')'
+    restoreResult.style.color = 'var(--red)'
+  }
+  restoreBtn.disabled = false
+})
+
+// ── Business add/edit form ─────────────────────────────────────────────────
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] // Yelp: 0=Mon
+const bizModal = document.getElementById('biz-form-modal')
+let bizFormEditId = null // null = add mode
+
+function slug(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'place'
+}
+
+function buildHoursRows() {
+  document.getElementById('bf-hours').innerHTML = DAY_NAMES.map((d, i) => `
+    <div style="display:grid;grid-template-columns:3rem auto 1fr 1fr;gap:.5rem;align-items:center;font-size:.82rem;">
+      <span style="font-weight:600;">${d}</span>
+      <label style="display:flex;align-items:center;gap:.25rem;font-size:.74rem;color:var(--text-muted);cursor:pointer;">
+        <input type="checkbox" class="bf-day-open" data-day="${i}"> open
+      </label>
+      <input type="time" class="bf-day-start import-input" data-day="${i}" style="margin:0;padding:.25rem .4rem;font-size:.8rem;" disabled>
+      <input type="time" class="bf-day-end import-input" data-day="${i}" style="margin:0;padding:.25rem .4rem;font-size:.8rem;" disabled>
+    </div>`).join('')
+  bizModal.querySelectorAll('.bf-day-open').forEach(cb => cb.addEventListener('change', () => {
+    const day = cb.dataset.day
+    bizModal.querySelector(`.bf-day-start[data-day="${day}"]`).disabled = !cb.checked
+    bizModal.querySelector(`.bf-day-end[data-day="${day}"]`).disabled = !cb.checked
+  }))
+}
+
+function hhmmToTime(hhmm) { return hhmm && hhmm.length === 4 ? `${hhmm.slice(0,2)}:${hhmm.slice(2)}` : '' }
+function timeToHhmm(t) { return t ? t.replace(':', '') : '' }
+
+function openBizForm(biz = null) {
+  bizFormEditId = biz?.id || null
+  document.getElementById('biz-form-title').textContent = biz ? `Edit: ${biz.name}` : 'Add business'
+  document.getElementById('biz-form-note').style.display = biz && !isManual(biz) ? 'block' : 'none'
+  document.getElementById('bf-error').textContent = ''
+  buildHoursRows()
+  const set = (id, v) => { document.getElementById(id).value = v ?? '' }
+  set('bf-name', biz?.name); set('bf-address1', biz?.location?.address1)
+  set('bf-city', biz?.location?.city); set('bf-state', biz?.location?.state); set('bf-zip', biz?.location?.zip_code)
+  set('bf-price', biz?.price); set('bf-rating', biz?.rating); set('bf-phone', biz?.display_phone || biz?.phone)
+  set('bf-categories', (biz?.categories || []).map(c => c.title).join(', '))
+  set('bf-website', biz?.website); set('bf-image', biz?.image_url)
+  set('bf-lat', biz?.coordinates?.latitude); set('bf-lng', biz?.coordinates?.longitude)
+  // Prefill hours — simple editor: one segment per day (first segment wins on split hours)
+  for (const seg of biz?.hours?.[0]?.open || []) {
+    const cb = bizModal.querySelector(`.bf-day-open[data-day="${seg.day}"]`)
+    if (!cb || cb.checked) continue
+    cb.checked = true
+    const start = bizModal.querySelector(`.bf-day-start[data-day="${seg.day}"]`)
+    const end = bizModal.querySelector(`.bf-day-end[data-day="${seg.day}"]`)
+    start.disabled = end.disabled = false
+    start.value = hhmmToTime(seg.start); end.value = hhmmToTime(seg.end)
+  }
+  bizModal.style.display = 'flex'
+  document.getElementById('bf-name').focus()
+}
+
+function closeBizForm() { bizModal.style.display = 'none'; bizFormEditId = null }
+
+function readBizForm() {
+  const val = id => document.getElementById(id).value.trim()
+  const name = val('bf-name')
+  if (!name) throw new Error('Name is required.')
+  const lat = val('bf-lat'), lng = val('bf-lng')
+  if ((lat && isNaN(+lat)) || (lng && isNaN(+lng))) throw new Error('Latitude/longitude must be numbers.')
+  for (const f of ['bf-website', 'bf-image']) {
+    const u = val(f)
+    if (u) { try { new URL(u) } catch { throw new Error(`${f === 'bf-website' ? 'Website' : 'Image'} URL is not valid.`) } }
+  }
+  // null (not undefined) so cleared fields survive JSON.stringify and persist
+  const rating = val('bf-rating') ? Math.min(5, Math.max(0, +val('bf-rating'))) : null
+  const openSegs = []
+  bizModal.querySelectorAll('.bf-day-open:checked').forEach(cb => {
+    const day = +cb.dataset.day
+    const start = timeToHhmm(bizModal.querySelector(`.bf-day-start[data-day="${day}"]`).value)
+    const end = timeToHhmm(bizModal.querySelector(`.bf-day-end[data-day="${day}"]`).value)
+    if (start && end) openSegs.push({ day, start, end, is_overnight: end < start })
+  })
+  const address1 = val('bf-address1'), city = val('bf-city'), state = val('bf-state'), zip = val('bf-zip')
+  return {
+    name,
+    image_url: val('bf-image'),
+    phone: val('bf-phone'), display_phone: val('bf-phone'),
+    price: val('bf-price') || null,
+    rating,
+    categories: val('bf-categories').split(',').map(s => s.trim()).filter(Boolean).map(title => ({ alias: slug(title), title })),
+    location: { address1, city, state, zip_code: zip, display_address: [address1, [city, state].filter(Boolean).join(', ') + (zip ? ' ' + zip : '')].filter(s => s && s.trim()) },
+    coordinates: lat && lng ? { latitude: +lat, longitude: +lng } : null,
+    hours: openSegs.length ? [{ hours_type: 'REGULAR', is_open_now: false, open: openSegs }] : null,
+    website: val('bf-website'),
+  }
+}
+
+document.getElementById('btn-add-manual').addEventListener('click', () => openBizForm())
+document.getElementById('biz-form-close').addEventListener('click', closeBizForm)
+document.getElementById('biz-form-cancel').addEventListener('click', closeBizForm)
+bizModal.addEventListener('click', e => { if (e.target === bizModal) closeBizForm() })
+
+document.getElementById('biz-form-save').addEventListener('click', () => {
+  let fields
+  try { fields = readBizForm() }
+  catch (e) { document.getElementById('bf-error').textContent = e.message; return }
+  if (bizFormEditId) {
+    // Edit: patch Yelp-shape fields only — id/url/review_count/user fields untouched
+    updateBusiness(bizFormEditId, fields)
+  } else {
+    saveBusiness({
+      id: `manual-${slug(fields.name)}-${Math.random().toString(36).slice(2, 6)}`,
+      manual: true,
+      url: '',
+      review_count: 0,
+      ...fields,
+    })
+  }
+  closeBizForm()
+  render()
+})
 
 // ── Cache debug ────────────────────────────────────────────────────────────
 function renderCacheDebug() {
-  const raw_all = loadCollection().filter(b => !b.not_found)
+  const raw_all = loadCollection().filter(b => !b.not_found && !isManual(b))
   const el  = document.getElementById('cache-debug-table')
   if (!raw_all.length) { el.innerHTML = '<p style="font-size:.82rem;color:var(--text-muted);">No businesses to inspect.</p>'; return }
 
@@ -1932,7 +2208,7 @@ function renderCacheDebug() {
   // Re-check a single business: clears cache, fetches fresh, updates stored status
   async function recheckBusiness(id) {
     localStorage.removeItem('yc_biz_' + id)
-    const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+    const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`, { headers: authHeaders() })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const biz = await res.json()
     const status = { id: biz.id, name: biz.name, is_closed: biz.is_closed, hours: biz.hours, coordinates: biz.coordinates }
@@ -2070,9 +2346,9 @@ function openTagPopover(bizId, anchorEl) {
     )
     list.innerHTML = matches.length
       ? matches.map(t => {
-          const c = tagMeta[t]?.color
-          return `<div class="tag-pop-item" data-tag="${t}">
-            <span class="tag-pop-dot" style="background:${c || 'var(--border)'}"></span>${t}
+          const c = safeColor(tagMeta[t]?.color, 'var(--border)')
+          return `<div class="tag-pop-item" data-tag="${escAttr(t)}">
+            <span class="tag-pop-dot" style="background:${c}"></span>${esc(t)}
           </div>`
         }).join('')
       : `<div class="tag-pop-empty">${q ? 'No match' : 'No tags yet'}</div>`
@@ -2212,27 +2488,27 @@ function renderTagsTab(filterStr = '') {
   if (!tags.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.84rem;">No tags yet. Create one above.</p>'; return }
 
   el.innerHTML = tags.map(tag => {
-      const color = tagMeta[tag]?.color
+      const color = safeColor(tagMeta[tag]?.color, 'var(--border)')
       const count = counts[tag] || 0
       const isList = !!tagMeta[tag]?.isList
       const description = tagMeta[tag]?.description || ''
       const shareUrl = `${location.origin}/share.html?tag=${encodeURIComponent(tag)}`
       return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:.3rem;">
         <div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:.5rem;align-items:center;padding:.5rem .75rem;">
-          <span class="color-swatch tag-color-swatch" data-tag="${tag}"
-            style="background:${color||'var(--border)'};width:22px;height:22px;cursor:pointer;" title="Click to change color"></span>
-          <span style="font-weight:600;font-size:.875rem;">${tag}</span>
+          <span class="color-swatch tag-color-swatch" data-tag="${escAttr(tag)}"
+            style="background:${color};width:22px;height:22px;cursor:pointer;" title="Click to change color"></span>
+          <span style="font-weight:600;font-size:.875rem;">${esc(tag)}</span>
           <span style="font-size:.8rem;color:var(--text-muted);font-weight:600;">${count}</span>
           <div style="display:flex;gap:.3rem;">
-            <button class="btn-sm${isList ? ' active' : ''}" data-list-toggle="${tag}" title="${isList ? 'Remove list' : 'Make list'}">📋 List</button>
-            <button class="btn-sm" data-rename-tag="${tag}">Rename</button>
-            <button class="btn-sm danger" data-delete-tag="${tag}">Delete</button>
+            <button class="btn-sm${isList ? ' active' : ''}" data-list-toggle="${escAttr(tag)}" title="${isList ? 'Remove list' : 'Make list'}">📋 List</button>
+            <button class="btn-sm" data-rename-tag="${escAttr(tag)}">Rename</button>
+            <button class="btn-sm danger" data-delete-tag="${escAttr(tag)}">Delete</button>
           </div>
         </div>
         ${isList ? `<div style="padding:.5rem .75rem 1rem;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:.5rem;">
           <label style="font-size:.75rem;font-weight:600;color:var(--text-muted);">Description (optional)</label>
-          <textarea class="import-input" data-desc-tag="${tag}" rows="2"
-            style="margin:0;font-size:.82rem;" placeholder="e.g. Best date night spots in LA">${description}</textarea>
+          <textarea class="import-input" data-desc-tag="${escAttr(tag)}" rows="2"
+            style="margin:0;font-size:.82rem;" placeholder="e.g. Best date night spots in LA">${esc(description)}</textarea>
           <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
             <code style="font-size:.72rem;color:var(--text-muted);background:var(--bg);padding:.2rem .5rem;border-radius:4px;border:1px solid var(--border);">${shareUrl}</code>
             <button class="btn-sm" data-copy-link="${shareUrl}">Copy link</button>
@@ -2381,6 +2657,8 @@ function initConnectionsTab() {
 }
 
 // ── Admin password gate ────────────────────────────────────────────────────
+// Client-side SOFT LOCK only (casual friction, not security). Real enforcement
+// is server-side: every write needs the Bearer token from /api/auth.
 ;(function() {
   if (localStorage.getItem('admin_unlocked') === '1') return
   const overlay = document.getElementById('admin-gate')
@@ -2635,7 +2913,7 @@ function initSyncTab() {
     const btn = document.getElementById('btn-sync-all')
     btn.disabled = true; btn.textContent = 'Checking…'
 
-    const businesses = loadCollection().filter(b => !b.not_found)
+    const businesses = loadCollection().filter(b => !b.not_found && !isManual(b))
     const progressEl = document.getElementById('sync-progress')
     const barEl      = document.getElementById('sync-bar')
     const msgEl      = document.getElementById('sync-progress-msg')
@@ -2723,6 +3001,7 @@ render()
 checkPausedQueue()
 renderImportHistory()
 refreshClosedStats()
+initRefreshHours()
 renderTagsTab()
 renderSuggestedTags()
 </script>

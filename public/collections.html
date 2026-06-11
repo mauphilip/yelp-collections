@@ -300,7 +300,7 @@ if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw ''
 import {
   initCollection, loadCollection, getAllTags, getAllCities, filterAndSort,
   starsHtml, categoryLabel, getDisplayImage, renderNotes, getTagMeta,
-  geocodeZip, pickRandom, updateBusiness, bulkRemove, isOpenNow
+  geocodeZip, pickRandom, updateBusiness, bulkRemove, isOpenNow, safeColor
 } from './app.js'
 import { initMap, renderMarkers, highlightMarker, showUserLocation, panToMarker } from './map.js'
 
@@ -420,13 +420,13 @@ addrInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyAddr() 
 function refreshTagChips() {
   const active = new Set(filters.tags)
   document.getElementById('tag-chips').innerHTML = getAllTags().map(t =>
-    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
+    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${escAttr(t)}">${esc(t)}</span>`
   ).join('')
 }
 function refreshCityChips() {
   const active = new Set(filters.cities)
   document.getElementById('city-chips').innerHTML = getAllCities().map(c =>
-    `<span class="chip${active.has(c) ? ' active' : ''}" data-val="${c}">${c}</span>`
+    `<span class="chip${active.has(c) ? ' active' : ''}" data-val="${escAttr(c)}">${esc(c)}</span>`
   ).join('')
 }
 
@@ -497,7 +497,7 @@ function renderCard(biz, index) {
   const notes = renderNotes(biz.notes)
   const tagMeta = getTagMeta()
   const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    const color = safeColor(tagMeta[t]?.color)
     return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
   }).join('')
 
@@ -542,10 +542,10 @@ function renderCard(biz, index) {
         ${openFlag}
       </div>
       <div class="card-body">
-        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a></div>
+        <div class="card-name">${biz.url ? `<a href="${escAttr(biz.url)}" target="_blank" rel="noopener">${esc(biz.name)}</a>` : esc(biz.name)}</div>
         <div class="card-meta">
           ${biz.rating ? `<span class="stars">★ ${biz.rating}</span>` : ''}
-          <span>${biz.review_count}</span>
+          ${biz.review_count ? `<span>${biz.review_count}</span>` : ''}
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
           <span class="cat">${esc(categoryLabel(biz))}</span>
         </div>
@@ -554,7 +554,7 @@ function renderCard(biz, index) {
         ${notes ? `<div class="card-notes-rendered">${notes}</div>` : ''}
       </div>
       <div class="card-actions">
-        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
+        ${biz.url ? `<a class="btn-sm active" href="${escAttr(biz.url)}" target="_blank" rel="noopener">Yelp</a>` : ''}
         <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
         <button type="button" class="btn-sm" data-action="edit-open">Edit</button>
       </div>
@@ -698,7 +698,7 @@ function showRandomModal(biz) {
   if (src) { img.src = src; img.classList.remove('no-img') }
   else { img.src = ''; img.classList.add('no-img') }
   document.getElementById('random-modal-name').innerHTML =
-    `<a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a>`
+    biz.url ? `<a href="${escAttr(biz.url)}" target="_blank" rel="noopener">${esc(biz.name)}</a>` : esc(biz.name)
   const stars = biz.rating ? `★ ${biz.rating}` : ''
   document.getElementById('random-modal-meta').innerHTML =
     [stars, biz.review_count ? `${biz.review_count} reviews` : '', biz.price || '', categoryLabel(biz)]
@@ -709,7 +709,7 @@ function showRandomModal(biz) {
   document.getElementById('random-modal-location').innerHTML =
     city ? `<a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--text-subtle);text-decoration:none;">📍 ${esc(city)}</a>` : ''
   document.getElementById('random-modal-tags').innerHTML = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    const color = safeColor(tagMeta[t]?.color)
     return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
   }).join('')
   document.getElementById('random-modal-notes').innerHTML = renderNotes(biz.notes) || ''

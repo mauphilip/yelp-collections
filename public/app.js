@@ -1,3 +1,35 @@
+// ── Auth ──────────────────────────────────────────────────────────────────────
+// The login page exchanges the password for a server-derived token (stored in
+// yc_auth). Every write and every Yelp-proxy call sends it as a Bearer header.
+// Legacy value '1' (pre-auth deploys) is treated as absent → forces re-login.
+
+export function authHeaders() {
+  const token = localStorage.getItem('yc_auth')
+  if (!token || token === '1') return {}
+  return { Authorization: `Bearer ${token}` }
+}
+
+// Server said our token is bad/missing → clear it and send the user to login.
+function handleAuthFailure() {
+  localStorage.removeItem('yc_auth')
+  location.replace('login.html')
+}
+
+// POST to /api/collection with auth + 401 handling. Throws on non-OK.
+async function apiPost(payload) {
+  const res = await fetch('/api/collection', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(payload),
+  })
+  if (res.status === 401) {
+    const body = await res.json().catch(() => ({}))
+    if (body.error === 'auth_required') { handleAuthFailure(); throw new Error('auth required') }
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res
+}
+
 // ── Rate Limit Tracking (reads Yelp's actual headers, no artificial caps) ─────
 // We don't throttle ourselves — Yelp enforces their own limits. We just track
 // what they tell us so we can display remaining calls and handle 429s properly.
@@ -30,9 +62,13 @@ export function getRateInfo() { return loadRateInfo() }
 // Makes a minimal 1-call ping to Yelp to get fresh rate limit headers.
 // Returns { remaining, dailyLimit, resetTime, updated } or throws.
 export async function checkYelpRateLimit() {
-  const res = await fetch('/api/yelp?path=/businesses/search&term=restaurant&location=los+angeles&limit=1')
+  const res = await fetch('/api/yelp?path=/businesses/search&term=restaurant&location=los+angeles&limit=1', { headers: authHeaders() })
   const info = saveRateInfo(res.headers)
-  if (res.status === 401) throw new Error('API key missing or invalid')
+  if (res.status === 401) {
+    const body = await res.json().catch(() => ({}))
+    if (body.error === 'auth_required') { handleAuthFailure(); throw new Error('auth required') }
+    throw new Error('API key missing or invalid')
+  }
   if (res.status === 429) throw new Error('Rate limited right now')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return info
@@ -62,7 +98,7 @@ function cacheSet(key, data, ttl) {
 // Returns { data, rateInfo, status }. On 429, returns retryAfter in seconds.
 export async function yelpFetch(path, params = {}) {
   const qs = new URLSearchParams({ path, ...params }).toString()
-  const res = await fetch(`/api/yelp?${qs}`)
+  const res = await fetch(`/api/yelp?${qs}`, { headers: authHeaders() })
   const rateInfo = saveRateInfo(res.headers)
 
   if (res.status === 429) {
@@ -73,6 +109,7 @@ export async function yelpFetch(path, params = {}) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
+    if (res.status === 401 && err.error === 'auth_required') { handleAuthFailure() }
     throw new Error(err.error || `HTTP ${res.status}`)
   }
 
@@ -136,31 +173,19 @@ export function getTagMeta() { return _tagMeta }
 
 export function setTagColor(tag, color) {
   _tagMeta = { ..._tagMeta, [tag]: { ...(_tagMeta[tag] || {}), color } }
-  fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'setTagMeta', tagMeta: _tagMeta }),
-  }).catch(console.error)
+  apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
 }
 
 export async function setTagListMeta(tag, patch) {
   _tagMeta = { ..._tagMeta, [tag]: { ...(_tagMeta[tag] || {}), ...patch } }
-  await fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'setTagMeta', tagMeta: _tagMeta }),
-  })
+  await apiPost({ action: 'setTagMeta', tagMeta: _tagMeta })
 }
 
 export function removeTagMeta(tag) {
   const meta = { ..._tagMeta }
   delete meta[tag]
   _tagMeta = meta
-  fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'setTagMeta', tagMeta: _tagMeta }),
-  }).catch(console.error)
+  apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
 }
 
 // Import history
@@ -171,11 +196,7 @@ export async function getImports() {
 }
 
 export function saveImport(id, label, counts) {
-  fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'saveImport', id, label, counts, timestamp: Date.now() }),
-  }).catch(console.error)
+  apiPost({ action: 'saveImport', id, label, counts, timestamp: Date.now() }).catch(console.error)
 }
 
 export async function getImportQueue() {
@@ -185,22 +206,35 @@ export async function getImportQueue() {
 }
 
 export function setImportQueue(queue) {
-  fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'setImportQueue', queue }),
-  }).catch(console.error)
+  apiPost({ action: 'setImportQueue', queue }).catch(console.error)
 }
 
 // Writes cache synchronously, fires KV write in background.
 function saveCollection(list) {
   _cache = list
   window.dispatchEvent(new CustomEvent('collection-updated'))
-  fetch('/api/collection', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'set', businesses: list }),
-  }).catch(err => console.error('KV write failed:', err))
+  apiPost({ action: 'set', businesses: list }).catch(err => console.error('KV write failed:', err))
+}
+
+// ── Backup / Restore ──────────────────────────────────────────────────────────
+
+export function exportBackup() {
+  return {
+    version: 1,
+    exported_at: new Date().toISOString(),
+    businesses: loadCollection(),
+    tagMeta: getTagMeta(),
+  }
+}
+
+// Replaces the whole collection + tag meta. AWAITED — a restore must not be
+// fire-and-forget; throws if either write fails.
+export async function replaceCollection(businesses, tagMeta = {}) {
+  _cache = businesses
+  _tagMeta = tagMeta
+  window.dispatchEvent(new CustomEvent('collection-updated'))
+  await apiPost({ action: 'set', businesses })
+  await apiPost({ action: 'setTagMeta', tagMeta })
 }
 
 // Stores the full Yelp API response plus our custom fields.
@@ -308,7 +342,7 @@ export function getCollectionStats() {
 
 export async function checkClosedBusinesses(onProgress, onDone) {
   const list = loadCollection()
-  const expired = list.filter(b => !b.not_found && !cacheGet('biz_' + b.id))
+  const expired = list.filter(b => !b.not_found && !isManual(b) && !cacheGet('biz_' + b.id))
   let checked = 0
   const closed = []
 
@@ -451,6 +485,19 @@ export function categoryLabel(biz) {
   return (biz.categories || []).map(c => c.title).join(', ')
 }
 
+// Sanitize a stored color before injecting into an inline style attribute.
+// Only hex colors pass through; anything else (including CSS injection
+// attempts like "red;background:url(...)") falls back.
+export function safeColor(c, fallback = 'var(--text-subtle)') {
+  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback
+}
+
+// Manually-entered business (no Yelp record behind it) — skip Yelp API
+// batch features for these (closed check, refresh hours, freshness sync).
+export function isManual(biz) {
+  return biz.manual === true || String(biz.id).startsWith('manual-')
+}
+
 // Get display image (custom override or Yelp original)
 export function getDisplayImage(biz) {
   return biz.custom_image || biz.image_url || ''
@@ -471,11 +518,7 @@ export function renameTagGlobal(oldTag, newTag) {
   if (_tagMeta[oldTag]) {
     _tagMeta = { ..._tagMeta, [newTag]: _tagMeta[oldTag] }
     delete _tagMeta[oldTag]
-    fetch('/api/collection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'setTagMeta', tagMeta: _tagMeta }),
-    }).catch(console.error)
+    apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
   }
 }
 

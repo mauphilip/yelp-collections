@@ -3,6 +3,8 @@
 // No artificial rate limiting — Yelp enforces their own limits and we pass
 // their rate-limit headers through so the client can handle 429s properly.
 
+import { verifyRequest } from './_auth.js'
+
 const YELP_BASE = 'https://api.yelp.com/v3'
 
 // Allowed Yelp API paths this proxy will forward to
@@ -14,6 +16,11 @@ const ALLOWED_PATHS = [
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // App auth — distinct from a Yelp upstream 401 (which carries body.yelp)
+  if (!verifyRequest(req)) {
+    return res.status(401).json({ error: 'auth_required' })
   }
 
   const apiKey = process.env.YELP_API_KEY

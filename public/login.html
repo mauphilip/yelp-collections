@@ -194,25 +194,42 @@
   </div>
 
   <script>
-    // Redirect if already logged in
-    if (localStorage.getItem('yc_auth')) location.replace('collections.html')
+    // Redirect if already logged in (legacy '1' value forces a fresh login)
+    const existing = localStorage.getItem('yc_auth')
+    if (existing && existing !== '1') location.replace('collections.html')
 
     const form = document.getElementById('login-form')
     const input = document.getElementById('password-input')
     const errorEl = document.getElementById('login-error')
 
-    form.addEventListener('submit', e => {
+    function shake(msg) {
+      errorEl.textContent = msg
+      input.classList.remove('shake')
+      void input.offsetWidth // force reflow to restart animation
+      input.classList.add('shake')
+      input.value = ''
+      input.addEventListener('animationend', () => input.classList.remove('shake'), { once: true })
+    }
+
+    form.addEventListener('submit', async e => {
       e.preventDefault()
-      if (input.value === '1990') {
-        localStorage.setItem('yc_auth', '1')
-        location.replace('collections.html')
-      } else {
-        errorEl.textContent = 'Incorrect password'
-        input.classList.remove('shake')
-        void input.offsetWidth // force reflow to restart animation
-        input.classList.add('shake')
-        input.value = ''
-        input.addEventListener('animationend', () => input.classList.remove('shake'), { once: true })
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: input.value }),
+        })
+        if (res.ok) {
+          const { token } = await res.json()
+          localStorage.setItem('yc_auth', token)
+          location.replace('collections.html')
+        } else if (res.status === 503) {
+          shake('Server password not configured')
+        } else {
+          shake('Incorrect password')
+        }
+      } catch {
+        shake('Network error — try again')
       }
     })
   </script>

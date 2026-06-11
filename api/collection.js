@@ -1,5 +1,7 @@
 // Vercel serverless function — collection + tag meta CRUD backed by Upstash Redis (KV)
 
+import { verifyRequest } from './_auth.js'
+
 const KV_KEY      = 'yelp_collection'
 const TAG_META_KEY = 'yelp_tag_meta'
 const IMPORTS_KEY  = 'yelp_imports'
@@ -9,6 +11,7 @@ async function kvRead(key) {
   const res = await fetch(`${process.env.KV_REST_API_URL}/get/${key}`, {
     headers: { Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}` },
   })
+  if (!res.ok) throw new Error(`KV read failed: ${res.status}`)
   const { result } = await res.json()
   if (!result) return null
   let parsed = typeof result === 'string' ? JSON.parse(result) : result
@@ -17,7 +20,7 @@ async function kvRead(key) {
 }
 
 async function kvWrite(key, data) {
-  await fetch(`${process.env.KV_REST_API_URL}/set/${key}`, {
+  const res = await fetch(`${process.env.KV_REST_API_URL}/set/${key}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.KV_REST_API_TOKEN}`,
@@ -25,6 +28,7 @@ async function kvWrite(key, data) {
     },
     body: JSON.stringify(data),
   })
+  if (!res.ok) throw new Error(`KV write failed: ${res.status}`)
 }
 
 async function kvGet()              { return (await kvRead(KV_KEY))              || [] }
@@ -43,6 +47,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'KV not configured' })
   }
 
+  try {
+
   // GET — return collection + tag meta + imports + queue
   if (req.method === 'GET') {
     const [businesses, tagMeta, imports, queue] = await Promise.all([
@@ -51,8 +57,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ businesses, tagMeta, imports, queue })
   }
 
-  // POST — mutations
+  // POST — mutations (auth required; GET stays public for share.html)
   if (req.method === 'POST') {
+    if (!verifyRequest(req)) {
+      return res.status(401).json({ error: 'auth_required' })
+    }
     const body = req.body || {}
     const { action } = body
 
@@ -106,4 +115,9 @@ export default async function handler(req, res) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+
+  } catch (err) {
+    console.error('collection handler error:', err)
+    return res.status(502).json({ error: 'Storage error' })
+  }
 }

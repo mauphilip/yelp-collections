@@ -134,7 +134,7 @@ alert(links.length + ' business URLs copied to clipboard!');</code><span style="
 
 <script type="module">
 if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw '' }
-import { initCollection, saveBusiness, saveStubBusiness, loadCollection } from './app.js'
+import { initCollection, saveBusiness, saveStubBusiness, loadCollection, authHeaders } from './app.js'
 
 // ── Dark mode + nav menu ─────────────────────────────────────────────────────
 ;(function() {
@@ -284,7 +284,7 @@ async function runImport(ids, collectionName, total, alreadyDone) {
 
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`)
+        const res = await fetch(`/api/yelp?path=/businesses/${encodeURIComponent(id)}`, { headers: authHeaders() })
 
         if (res.status === 429) {
           const body = await res.json().catch(() => ({}))

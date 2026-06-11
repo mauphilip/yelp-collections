@@ -210,7 +210,7 @@
 <script type="module">
 if (!localStorage.getItem('yc_auth')) { location.replace('login.html'); throw '' }
 
-import { initCollection, loadCollection, getTagMeta, starsHtml, categoryLabel, getDisplayImage, renderNotes } from './app.js'
+import { initCollection, loadCollection, getTagMeta, categoryLabel, getDisplayImage, renderNotes, safeColor } from './app.js'
 
 // ── Dark mode ─────────────────────────────────────────────────────────────
 const darkToggle = document.getElementById('dark-toggle')
@@ -331,7 +331,7 @@ function renderPick() {
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const city = [biz.location?.city, biz.location?.state].filter(Boolean).join(', ')
   const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
+    const color = safeColor(tagMeta[t]?.color)
     return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
   }).join('')
   const notes = renderNotes(biz.notes)
@@ -341,7 +341,7 @@ function renderPick() {
     <div class="pick-card">
       <img class="pick-img${imgSrc ? '' : ' no-img'}" src="${imgSrc}" alt="${esc(biz.name)}" loading="eager">
       <div class="pick-body">
-        <div class="pick-name"><a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a></div>
+        <div class="pick-name">${biz.url ? `<a href="${biz.url}" target="_blank" rel="noopener">${esc(biz.name)}</a>` : esc(biz.name)}</div>
         <div class="pick-meta">
           <span class="stars">${stars}</span>
           ${biz.review_count ? `<span>${biz.review_count} reviews</span>` : ''}
@@ -354,7 +354,7 @@ function renderPick() {
       </div>
       <div class="pick-actions">
         <button class="pick-btn-again" id="pick-again-btn">${pickIndex < list.length - 1 ? 'Pick again' : 'Start over'}</button>
-        <a class="pick-btn-yelp" href="${biz.url}" target="_blank" rel="noopener">Yelp ↗</a>
+        ${biz.url ? `<a class="pick-btn-yelp" href="${biz.url}" target="_blank" rel="noopener">Yelp ↗</a>` : ''}
         <a class="pick-btn-dir" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
       </div>
     </div>`

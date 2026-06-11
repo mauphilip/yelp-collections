@@ -58,10 +58,10 @@ navMenuBtn.addEventListener('click', e => { e.stopPropagation(); navMenuDropdown
 document.addEventListener('click', () => navMenuDropdown.classList.remove('open'))
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-function starsHtml(r) {
-  const full = Math.floor(r), half = r % 1 >= 0.5
-  let s = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - (half ? 1 : 0))
-  return s
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function escAttr(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;') }
+function safeColor(c, fallback = 'var(--text-subtle)') {
+  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback
 }
 function categoryLabel(biz) {
   return biz.categories?.[0]?.title || ''
@@ -72,7 +72,7 @@ function renderCard(biz, tagMeta, index) {
   const closed = biz.closed_status === 'closed'
   const imgSrc = biz.custom_image || biz.image_url || ''
   const img = imgSrc
-    ? `<img class="card-img" src="${imgSrc}" alt="${biz.name}" loading="lazy">`
+    ? `<img class="card-img" src="${escAttr(imgSrc)}" alt="${escAttr(biz.name)}" loading="lazy">`
     : '<div class="card-img-placeholder"></div>'
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>' : ''
   const stamp = biz.status === 'been' ? '<span class="stamp been">Been ✓</span>'
@@ -80,9 +80,12 @@ function renderCard(biz, tagMeta, index) {
   const dest = [biz.location?.address1, biz.location?.city, biz.location?.state, biz.location?.zip_code].filter(Boolean).join(', ')
   const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest || biz.name)}`
   const tags = (biz.tags || []).map(t => {
-    const color = tagMeta[t]?.color || 'var(--text-subtle)'
-    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${t}</span>`
+    const color = safeColor(tagMeta[t]?.color)
+    return `<span class="chip" style="font-size:.68rem;padding:.12rem .45rem;color:${color};border-color:${color}55;">${esc(t)}</span>`
   }).join('')
+  const nameHtml = biz.url
+    ? `<a href="${escAttr(biz.url)}" target="_blank" rel="noopener">${esc(biz.name)}</a>`
+    : esc(biz.name)
   return `
     <div class="card${closed ? ' closed' : ''}${biz.status === 'skip' ? ' skipped' : ''}" data-id="${biz.id}">
       <div class="card-img-wrap">
@@ -92,18 +95,18 @@ function renderCard(biz, tagMeta, index) {
         ${stamp}
       </div>
       <div class="card-body">
-        <div class="card-name"><a href="${biz.url}" target="_blank" rel="noopener">${biz.name}</a></div>
+        <div class="card-name">${nameHtml}</div>
         <div class="card-meta">
           ${biz.rating ? `<span class="stars">★ ${biz.rating}</span>` : ''}
-          <span>${biz.review_count}</span>
+          ${biz.review_count ? `<span>${biz.review_count}</span>` : ''}
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
-          <span class="cat">${categoryLabel(biz)}</span>
+          <span class="cat">${esc(categoryLabel(biz))}</span>
         </div>
-        ${biz.location?.city ? `<div class="card-location">${biz.location.city}${biz.location.state ? ', '+biz.location.state : ''}</div>` : ''}
+        ${biz.location?.city ? `<div class="card-location">${esc(biz.location.city)}${biz.location.state ? ', '+esc(biz.location.state) : ''}</div>` : ''}
         ${tags ? `<div class="card-tags">${tags}</div>` : ''}
       </div>
       <div class="card-actions">
-        <a class="btn-sm active" href="${biz.url}" target="_blank" rel="noopener">Yelp</a>
+        ${biz.url ? `<a class="btn-sm active" href="${escAttr(biz.url)}" target="_blank" rel="noopener">Yelp</a>` : ''}
         <a class="btn-sm" href="${mapsUrl}" target="_blank" rel="noopener">Directions</a>
       </div>
     </div>`
