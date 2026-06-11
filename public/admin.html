@@ -113,8 +113,8 @@
     }
     /* Import & Sync section collapsibles */
     #tab-import-sync { max-width: 680px; margin: 0 auto; padding: 1.25rem 1.5rem 4rem; }
-    #tab-import-sync details { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .75rem; overflow: hidden; }
-    #tab-import-sync details[open] { box-shadow: 0 1px 6px rgba(0,0,0,.06); }
+    #tab-import-sync details { border: 1.5px solid var(--line); border-radius: var(--radius); margin-bottom: .75rem; overflow: hidden; background: var(--surface); }
+    #tab-import-sync details[open] { border-color: var(--ink); box-shadow: var(--shadow); }
     .sync-section-header {
       display: flex; align-items: center; gap: .5rem;
       font-size: .9rem; font-weight: 700; letter-spacing: -.02em;
@@ -134,22 +134,22 @@
       line-height: 1.55;
     }
     .api-notice {
-      background: #fff9db;
-      border: 1px solid #ffe066;
+      background: var(--gray-light);
+      border: 1px solid var(--mustard);
       border-radius: var(--radius-sm);
       padding: .55rem .85rem;
       font-size: .8rem;
-      color: #5c3d00;
+      color: var(--text);
       font-weight: 500;
       margin-bottom: 1.25rem;
     }
     .free-notice {
-      background: #d3f9d8;
-      border: 1px solid #8ce99a;
+      background: var(--pistachio-soft);
+      border: 1px solid var(--pistachio);
       border-radius: var(--radius-sm);
       padding: .55rem .85rem;
       font-size: .8rem;
-      color: #1a5c2a;
+      color: var(--text);
       font-weight: 500;
       margin-bottom: 1.25rem;
     }
@@ -168,9 +168,9 @@
       background: var(--gray-light);
       color: var(--text-muted);
     }
-    .stat-pill.warn { background: #fff3cd; border-color: #ffe066; color: #856404; }
-    .stat-pill.danger { background: #ffe0e0; border-color: #ffa8a8; color: #c92a2a; }
-    .stat-pill.ok { background: #d3f9d8; border-color: #8ce99a; color: #1a5c2a; }
+    .stat-pill.warn { border-color: var(--mustard); color: var(--mustard); }
+    .stat-pill.danger { border-color: var(--red); color: var(--red); }
+    .stat-pill.ok { border-color: var(--green); color: var(--green); }
 
     /* Closed results list */
     .closed-results { margin-top: 1rem; }
@@ -188,15 +188,16 @@
     .closed-row .biz-name a { color: var(--text); }
     .closed-row .biz-name a:hover { color: var(--blue); }
     .closed-row .biz-city { color: var(--text-subtle); font-size: .76rem; }
-    .progress-bar-wrap { background: var(--gray-light); border-radius: 8px; height: 8px; overflow: hidden; margin: .75rem 0; }
+    .progress-bar-wrap { background: var(--gray-light); border: 1px solid var(--line); border-radius: var(--radius-sm); height: 10px; overflow: hidden; margin: .75rem 0; }
     .progress-bar-fill { background: var(--blue); height: 100%; width: 0%; transition: width .3s; }
 
-    /* Import scroll snippet */
+    /* Import scroll snippet — ink-on-paper inversion, theme-aware */
     .snippet-box {
-      background: #1f2937;
-      color: #e5e7eb;
+      background: var(--ink);
+      color: var(--bg);
+      font-family: var(--mono);
       padding: .75rem;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       font-size: .72rem;
       overflow-x: auto;
       white-space: pre-wrap;
@@ -210,8 +211,16 @@
       top: .4rem;
       right: .5rem;
       font-size: .68rem;
-      color: #9ca3af;
+      color: var(--bg);
+      opacity: .55;
     }
+
+    /* Business add/edit form modal */
+    #biz-form-modal { background: rgba(22,22,22,.55); }
+    [data-theme="dark"] #biz-form-modal { background: rgba(0,0,0,.72); }
+    .bf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+    @media (max-width: 480px) { .bf-grid { grid-template-columns: 1fr; } }
+    .import-input:disabled { opacity: .45; border-color: var(--line); }
   </style>
 </head>
 <body>
@@ -755,7 +764,7 @@ alert(links.length + ' URLs copied!');</code></div>
 
 <!-- Admin password gate overlay -->
 <div id="admin-gate" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;max-width:320px;width:100%;display:flex;flex-direction:column;gap:1rem;box-shadow:var(--shadow-md);">
+  <div style="background:var(--surface);border:1.5px solid var(--ink);border-radius:var(--radius);padding:2.5rem 2rem;max-width:320px;width:100%;display:flex;flex-direction:column;gap:1rem;box-shadow:4px 4px 0 rgba(22,22,22,.85);">
     <div style="font-size:1.1rem;font-weight:700;">🔐 Admin Access</div>
     <input id="gate-input" type="password" placeholder="Password" class="import-input" autofocus style="width:100%;box-sizing:border-box;margin:0;">
     <button id="gate-submit" class="btn-primary" style="width:100%;">Enter</button>
@@ -764,14 +773,14 @@ alert(links.length + ' URLs copied!');</code></div>
 </div>
 
 <!-- Business add/edit form modal -->
-<div id="biz-form-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.45);align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;">
+<div id="biz-form-modal" style="display:none;position:fixed;inset:0;z-index:9000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;">
   <div style="background:var(--surface);border:1.5px solid var(--ink);border-radius:var(--radius);padding:1.5rem;max-width:560px;width:100%;box-shadow:0 6px 0 rgba(22,22,22,.85);margin:auto 0;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
       <h2 id="biz-form-title" style="font-size:1.1rem;font-weight:800;margin:0;">Add business</h2>
       <button id="biz-form-close" class="btn-sm" aria-label="Close">✕</button>
     </div>
     <p id="biz-form-note" style="display:none;font-size:.76rem;color:var(--text-muted);margin:0 0 .75rem;">⚠ For Yelp-imported places, a later "Sync Data" freshness run can overwrite these fields with fresh Yelp values.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+    <div class="bf-grid">
       <input id="bf-name" class="import-input" type="text" placeholder="Name *" style="grid-column:1/-1;margin:0;">
       <input id="bf-address1" class="import-input" type="text" placeholder="Street address" style="grid-column:1/-1;margin:0;">
       <input id="bf-city" class="import-input" type="text" placeholder="City" style="margin:0;">
@@ -817,12 +826,24 @@ import {
   geocodeZip,
   getCollectionStats,
   diffYelpFields, applyYelpPatch, batchPatchCollection, yelpFetch,
-  safeColor, isManual, authHeaders, exportBackup, replaceCollection,
+  safeColor, isManual, authHeaders, exportBackup, replaceCollection, checkYelpAlive,
 } from './app.js'
 
 // ── Escaping helpers ───────────────────────────────────────────────────────
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 function escAttr(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;') }
+
+// Age of the stored Yelp snapshot — once the API dies, this is the only
+// honest signal of how stale rating/hours data is.
+function dataAge(biz) {
+  const ts = biz.import_date || biz.saved_at
+  if (!ts) return ''
+  const days = Math.floor((Date.now() - ts) / 86_400_000)
+  if (days < 1) return 'today'
+  if (days < 30) return `${days}d ago`
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`
+  return `${Math.floor(days / 365)}y ago`
+}
 
 // ── Dark mode ─────────────────────────────────────────────────────────────
 const darkToggle = document.getElementById('dark-toggle')
@@ -848,7 +869,7 @@ function activateTab(tab) {
   document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab))
   // Only toggle top-level panels (not nested sub-panels inside import-sync)
   document.querySelectorAll('#admin-main > .admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab))
-  if (tab === 'import-sync')  { refreshClosedStats(); initRefreshHours() }
+  if (tab === 'import-sync')  { refreshClosedStats(); initRefreshHours(); updateYelpAliveUI() }
   if (tab === 'tags')         { renderTagsTab(); renderSuggestedTags() }
   if (tab === 'connections')  initConnectionsTab()
   if (tab === 'stats')        renderStatsTab()
@@ -949,7 +970,7 @@ zipInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyZip() })
 function refreshTagChips() {
   const active = new Set(filters.tags)
   document.getElementById('tag-chips').innerHTML = getAllTags().map(t =>
-    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${t}">${t}</span>`
+    `<span class="chip${active.has(t) ? ' active' : ''}" data-val="${escAttr(t)}">${esc(t)}</span>`
   ).join('')
 }
 
@@ -1033,7 +1054,7 @@ function renderCard(biz) {
     : biz.closed_status === 'closed' ? '<div class="closed-badge">Permanently Closed</div>'
     : biz.closed_status === 'unknown' ? '<div class="warn-badge">Status unknown</div>' : ''
   const imgSrc = getDisplayImage(biz)
-  const img = imgSrc ? `<img class="card-img" src="${escAttr(imgSrc)}" alt="${escAttr(biz.name)}" loading="lazy">` : '<div class="card-img-placeholder"></div>'
+  const img = imgSrc ? `<img class="card-img" src="${escAttr(imgSrc)}" alt="${escAttr(biz.name)}" loading="lazy" onerror="this.classList.add('broken')">` : '<div class="card-img-placeholder"></div>'
   const checkbox = selectMode ? `<div class="card-checkbox" data-select="${biz.id}">${selectedIds.has(biz.id) ? '✓' : ''}</div>` : ''
   const tagMeta = getTagMeta()
   const tags = (biz.tags || []).map(t => {
@@ -1065,7 +1086,7 @@ function renderCard(biz) {
           ${biz.price ? `<span class="price">${biz.price}</span>` : ''}
           <span class="cat">${esc(categoryLabel(biz))}</span>
         </div>
-        <div class="card-meta">${esc(biz.location?.city || '')}</div>
+        <div class="card-meta">${esc(biz.location?.city || '')}${dataAge(biz) ? `<span style="color:var(--text-subtle);font-size:.72rem;"> · synced ${dataAge(biz)}</span>` : ''}</div>
         <div class="card-tags">${tags}<span class="chip" style="font-size:.7rem;padding:.15rem .4rem;" data-add-tag="${biz.id}">+ tag</span></div>
         <div class="card-notes-rendered" data-edit-notes="${biz.id}" title="Click to edit notes">${notesHtml || '<span style="color:var(--text-subtle);font-size:.73rem;">Add notes…</span>'}</div>
         <textarea class="card-notes" data-id="${biz.id}" rows="3" style="display:none;" placeholder="Notes… use - for bullet lists">${esc(biz.notes || '')}</textarea>
@@ -1083,7 +1104,7 @@ function renderCardRow(biz) {
   const statusBadge = biz.status === 'been' ? '<span class="badge-been">Been</span>' : biz.status === 'want' ? '<span class="badge-want">Want</span>' : biz.status === 'skip' ? '<span style="font-size:.68rem;font-weight:700;border-radius:4px;padding:.1rem .35rem;background:var(--gray-light);color:var(--text-muted);text-decoration:line-through;">Skip</span>' : ''
   const closedBadge = biz.closed_status === 'closed' ? '<span class="badge-closed">Closed</span>' : ''
   const selectedClass = selectedIds.has(biz.id) ? ' selected' : ''
-  return `<div class="card-row${selectedClass}" data-id="${biz.id}">
+  return `<div class="card-row${selectedClass}" data-id="${biz.id}" title="Data synced ${dataAge(biz) || 'unknown'}">
     <span class="card-row-name">${esc(biz.name)}</span>
     <span class="card-row-cat" style="color:var(--text-muted);font-size:.78rem;">${esc(categoryLabel(biz))}</span>
     <span class="card-row-price" style="color:var(--text-muted);font-size:.78rem;">${biz.price || '—'}</span>
@@ -1312,11 +1333,11 @@ document.querySelectorAll('.snippet-box').forEach(box => {
           ? `<span style="font-size:.72rem;background:#d3f9d8;color:#2f9e44;border-radius:4px;padding:.18rem .45rem;font-weight:700;white-space:nowrap;flex-shrink:0;">✓ Saved</span>`
           : `<button class="btn-sm${retry ? '' : ''}" data-qi="${biz.id}" style="white-space:nowrap;flex-shrink:0;">${retry ? 'Retry' : 'Import'}</button>`
 
-        return `<div class="search-import-row" data-id="${biz.id}" data-url="${biz.url}" style="cursor:pointer;">
+        return `<div class="search-import-row" data-id="${biz.id}" data-url="${escAttr(biz.url || '')}" style="cursor:pointer;">
           <div style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${biz.name}</div>
-            <div style="font-size:.74rem;color:var(--text-muted);margin-top:.1rem;">${addr}</div>
-            ${subline ? `<div style="font-size:.72rem;color:var(--text-subtle);margin-top:.1rem;">${subline}</div>` : ''}
+            <div style="font-weight:600;font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(biz.name)}</div>
+            <div style="font-size:.74rem;color:var(--text-muted);margin-top:.1rem;">${esc(addr)}</div>
+            ${subline ? `<div style="font-size:.72rem;color:var(--text-subtle);margin-top:.1rem;">${esc(subline)}</div>` : ''}
           </div>
           ${badge}
         </div>`
@@ -1903,6 +1924,31 @@ function initRefreshHours() {
   }
 }
 
+// ── Yelp API liveness UI ────────────────────────────────────────────────────
+// When the trial key dies, grey out Yelp-dependent features with one clear
+// banner instead of letting every button fail cryptically. Manual add/edit,
+// backup/restore, and everything reading stored data keep working.
+const YELP_DEP_BUTTONS = ['btn-search-import', 'btn-run-closed-check', 'btn-refresh-hours', 'btn-sync-all']
+
+async function updateYelpAliveUI() {
+  const alive = await checkYelpAlive()
+  const panel = document.getElementById('tab-import-sync')
+  let banner = document.getElementById('yelp-dead-banner')
+  if (alive) { banner?.remove(); return }
+  if (!banner) {
+    banner = document.createElement('div')
+    banner.id = 'yelp-dead-banner'
+    banner.style.cssText = 'background:var(--ink);color:var(--bg);border-radius:var(--radius);' +
+      'padding:.7rem 1rem;font-size:.84rem;font-weight:600;margin-bottom:1rem;box-shadow:var(--shadow);'
+    banner.innerHTML = '🔌 Yelp API unavailable (trial expired or key invalid). Search, import, closed-check and sync are disabled — manual add (＋) and editing keep working from stored data.'
+    panel.prepend(banner)
+  }
+  for (const id of YELP_DEP_BUTTONS) {
+    const btn = document.getElementById(id)
+    if (btn) { btn.disabled = true; btn.title = 'Yelp API unavailable' }
+  }
+}
+
 // ── Backup & Restore ───────────────────────────────────────────────────────
 document.getElementById('btn-download-backup').addEventListener('click', () => {
   const backup = exportBackup()
@@ -2083,6 +2129,9 @@ document.getElementById('btn-add-manual').addEventListener('click', () => openBi
 document.getElementById('biz-form-close').addEventListener('click', closeBizForm)
 document.getElementById('biz-form-cancel').addEventListener('click', closeBizForm)
 bizModal.addEventListener('click', e => { if (e.target === bizModal) closeBizForm() })
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && bizModal.style.display !== 'none') closeBizForm()
+})
 
 document.getElementById('biz-form-save').addEventListener('click', () => {
   let fields
@@ -2093,7 +2142,7 @@ document.getElementById('biz-form-save').addEventListener('click', () => {
     updateBusiness(bizFormEditId, fields)
   } else {
     saveBusiness({
-      id: `manual-${slug(fields.name)}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `manual-${slug(fields.name)}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       manual: true,
       url: '',
       review_count: 0,

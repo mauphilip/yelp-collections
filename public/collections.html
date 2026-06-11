@@ -473,7 +473,7 @@ function renderCard(biz, index) {
   const closed = biz.closed_status === 'closed'
   const imgSrc = getDisplayImage(biz)
   const img = imgSrc
-    ? `<img class="card-img" src="${imgSrc}" alt="${esc(biz.name)}" loading="lazy">`
+    ? `<img class="card-img" src="${escAttr(imgSrc)}" alt="${escAttr(biz.name)}" loading="lazy" onerror="this.classList.add('broken')">`
     : '<div class="card-img-placeholder"></div>'
 
   const closedBadge = closed ? '<span class="closed-badge">Closed</span>'

@@ -15,6 +15,26 @@ function handleAuthFailure() {
   location.replace('login.html')
 }
 
+// ── Error toast ───────────────────────────────────────────────────────────────
+// Small fixed banner so failed background writes are never silent.
+
+export function notifyError(msg) {
+  let el = document.getElementById('yc-toast')
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'yc-toast'
+    el.style.cssText = 'position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);z-index:99999;' +
+      'background:var(--ink,#161616);color:var(--bg,#F4F4EF);border:1.5px solid var(--ink,#161616);' +
+      'border-radius:4px;box-shadow:0 3px 0 rgba(22,22,22,.85);padding:.6rem 1rem;font-size:.84rem;' +
+      'font-weight:600;max-width:90vw;display:none;'
+    document.body.appendChild(el)
+  }
+  el.textContent = '⚠ ' + msg
+  el.style.display = 'block'
+  clearTimeout(el._hideTimer)
+  el._hideTimer = setTimeout(() => { el.style.display = 'none' }, 6000)
+}
+
 // POST to /api/collection with auth + 401 handling. Throws on non-OK.
 async function apiPost(payload) {
   const res = await fetch('/api/collection', {
@@ -72,6 +92,36 @@ export async function checkYelpRateLimit() {
   if (res.status === 429) throw new Error('Rate limited right now')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return info
+}
+
+// ── Yelp API liveness (post-trial detection) ──────────────────────────────────
+// One canary call, cached 24h, so admin can grey out Yelp-dependent features
+// once the trial key dies instead of letting every button error cryptically.
+
+const ALIVE_KEY = 'yelp_alive'
+
+export async function checkYelpAlive(force = false) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(ALIVE_KEY) || 'null')
+    if (!force && cached && Date.now() - cached.ts < 24 * 3_600_000) return cached.ok
+  } catch {}
+  let ok
+  try {
+    const res = await fetch('/api/yelp?path=/businesses/search&term=cafe&location=los+angeles&limit=1', { headers: authHeaders() })
+    saveRateInfo(res.headers)
+    if (res.status === 401) {
+      const body = await res.json().catch(() => ({}))
+      if (body.error === 'auth_required') { handleAuthFailure(); return true } // app auth, not Yelp death
+      ok = false // Yelp key invalid/expired
+    } else {
+      ok = res.ok || res.status === 429 // rate-limited still means the key works
+    }
+  } catch {
+    // Network failure is inconclusive — don't cry wolf, keep last known state
+    try { return JSON.parse(localStorage.getItem(ALIVE_KEY) || 'null')?.ok ?? true } catch { return true }
+  }
+  try { localStorage.setItem(ALIVE_KEY, JSON.stringify({ ok, ts: Date.now() })) } catch {}
+  return ok
 }
 
 // ── API Cache (24h for search results, 7d for business status) ────────────────
@@ -155,11 +205,21 @@ let _cache = null
 let _tagMeta = {}
 
 // Call once on page load before rendering. Populates the in-memory cache from KV.
+// Never throws — on failure it returns an empty collection and shows a visible
+// error banner instead of leaving the page blank.
 export async function initCollection() {
-  const res = await fetch('/api/collection')
-  const { businesses, tagMeta } = await res.json()
-  _cache = businesses
-  _tagMeta = tagMeta || {}
+  try {
+    const res = await fetch('/api/collection')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const { businesses, tagMeta } = await res.json()
+    _cache = businesses || []
+    _tagMeta = tagMeta || {}
+  } catch (err) {
+    console.error('initCollection failed:', err)
+    _cache = _cache || []
+    _tagMeta = _tagMeta || {}
+    notifyError("Couldn't load your collection — the server may be down. Showing nothing rather than stale data; reload to retry.")
+  }
   return _cache
 }
 
@@ -173,7 +233,7 @@ export function getTagMeta() { return _tagMeta }
 
 export function setTagColor(tag, color) {
   _tagMeta = { ..._tagMeta, [tag]: { ...(_tagMeta[tag] || {}), color } }
-  apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
+  persist({ action: 'setTagMeta', tagMeta: _tagMeta }, 'Tag color')
 }
 
 export async function setTagListMeta(tag, patch) {
@@ -185,7 +245,7 @@ export function removeTagMeta(tag) {
   const meta = { ..._tagMeta }
   delete meta[tag]
   _tagMeta = meta
-  apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
+  persist({ action: 'setTagMeta', tagMeta: _tagMeta }, 'Tag delete')
 }
 
 // Import history
@@ -196,7 +256,7 @@ export async function getImports() {
 }
 
 export function saveImport(id, label, counts) {
-  apiPost({ action: 'saveImport', id, label, counts, timestamp: Date.now() }).catch(console.error)
+  persist({ action: 'saveImport', id, label, counts, timestamp: Date.now() }, 'Import history')
 }
 
 export async function getImportQueue() {
@@ -206,14 +266,31 @@ export async function getImportQueue() {
 }
 
 export function setImportQueue(queue) {
-  apiPost({ action: 'setImportQueue', queue }).catch(console.error)
+  persist({ action: 'setImportQueue', queue }, 'Import queue')
 }
 
-// Writes cache synchronously, fires KV write in background.
-function saveCollection(list) {
+// Updates the in-memory cache + notifies listeners (no server write).
+function saveLocal(list) {
   _cache = list
   window.dispatchEvent(new CustomEvent('collection-updated'))
-  apiPost({ action: 'set', businesses: list }).catch(err => console.error('KV write failed:', err))
+}
+
+// Background-persist helper — surfaces failures as a toast instead of
+// silently losing the write in the console.
+function persist(payload, what = 'Save') {
+  apiPost(payload).catch(err => {
+    console.error('KV write failed:', err)
+    notifyError(`${what} failed — your change may not be saved. Check your connection and retry.`)
+  })
+}
+
+// Writes cache synchronously, fires whole-list KV write in background.
+// Use ONLY for bulk/multi-business mutations — single-business edits go
+// through targeted action:'update'/'add'/'remove' to avoid clobbering
+// concurrent edits from another tab/device with a stale full list.
+function saveCollection(list) {
+  saveLocal(list)
+  persist({ action: 'set', businesses: list })
 }
 
 // ── Backup / Restore ──────────────────────────────────────────────────────────
@@ -247,8 +324,9 @@ export function saveBusiness(biz, tags = [], collectionName = '', import_id = ''
   const base = existing ? list.filter(b => b.id !== biz.id) : list
   const preservedTags = existing?.tags || []
   const tagList = [...new Set([...preservedTags, ...tags, ...(collectionName ? [collectionName] : [])])]
-  base.push({
+  const record = {
     ...biz,
+    not_found: false,  // explicit — server 'update' merges over a stub's not_found:true
     custom_image: existing?.custom_image || '',
     tags: tagList,
     status: existing?.status || 'want',
@@ -257,15 +335,22 @@ export function saveBusiness(biz, tags = [], collectionName = '', import_id = ''
     import_id: import_id || '',
     import_date: import_id ? Date.now() : null,
     closed_status: null,
-  })
-  saveCollection(base)
+  }
+  base.push(record)
+  saveLocal(base)
+  if (existing) {
+    // Stub replacement rewrites the record in place server-side
+    persist({ action: 'update', id: biz.id, patch: record }, 'Import')
+  } else {
+    persist({ action: 'add', business: record }, 'Import')
+  }
 }
 
 // Saves a minimal stub when a business can't be fetched — flagged for cleanup.
 export function saveStubBusiness(id, collectionName = '') {
   const list = loadCollection()
   if (list.find(b => b.id === id)) return
-  list.push({
+  const stub = {
     id,
     name: id,
     url: `https://www.yelp.com/biz/${id}`,
@@ -277,12 +362,15 @@ export function saveStubBusiness(id, collectionName = '') {
     notes: '',
     saved_at: Date.now(),
     closed_status: 'not_found',
-  })
-  saveCollection(list)
+  }
+  list.push(stub)
+  saveLocal(list)
+  persist({ action: 'add', business: stub }, 'Import')
 }
 
 export function removeBusiness(id) {
-  saveCollection(loadCollection().filter(b => b.id !== id))
+  saveLocal(loadCollection().filter(b => b.id !== id))
+  persist({ action: 'remove', id }, 'Remove')
 }
 
 export function updateBusiness(id, patch) {
@@ -290,15 +378,19 @@ export function updateBusiness(id, patch) {
   const idx = list.findIndex(b => b.id === id)
   if (idx === -1) return
   list[idx] = { ...list[idx], ...patch }
-  saveCollection(list)
+  saveLocal(list)
+  // Targeted patch — server merges into the stored record, so a concurrent
+  // edit to a DIFFERENT business from another device can't be clobbered.
+  persist({ action: 'update', id, patch }, 'Update')
 }
 
 export function addTag(id, tag) {
   const list = loadCollection()
   const b = list.find(b => b.id === id)
   if (!b || b.tags.includes(tag)) return
-  b.tags.push(tag)
-  saveCollection(list)
+  b.tags = [...b.tags, tag]
+  saveLocal(list)
+  persist({ action: 'update', id, patch: { tags: b.tags } }, 'Tag')
 }
 
 export function removeTag(id, tag) {
@@ -306,7 +398,8 @@ export function removeTag(id, tag) {
   const b = list.find(b => b.id === id)
   if (!b) return
   b.tags = b.tags.filter(t => t !== tag)
-  saveCollection(list)
+  saveLocal(list)
+  persist({ action: 'update', id, patch: { tags: b.tags } }, 'Tag')
 }
 
 export function getAllTags() {
@@ -518,7 +611,7 @@ export function renameTagGlobal(oldTag, newTag) {
   if (_tagMeta[oldTag]) {
     _tagMeta = { ..._tagMeta, [newTag]: _tagMeta[oldTag] }
     delete _tagMeta[oldTag]
-    apiPost({ action: 'setTagMeta', tagMeta: _tagMeta }).catch(console.error)
+    persist({ action: 'setTagMeta', tagMeta: _tagMeta }, 'Tag rename')
   }
 }
 
